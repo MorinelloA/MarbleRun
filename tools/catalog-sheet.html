@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalog sheet</title>
+<style>
+  body { margin: 0; background: #1a1a1f; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<!-- Dev page: every piece in every orientation the game allows, its art with
+     the physics outlines on top (?scale=2 for a sharper sheet, ?outlines=0
+     for art only). Serve the repo root with tools/devserver.py. -->
+<canvas id="sheet"></canvas>
+<script src="../vendor/matter.min.js"></script>
+<script type="module" src="catalog-sheet.js"></script>
+</body>
+</html>

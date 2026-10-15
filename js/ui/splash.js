@@ -9,7 +9,7 @@ import * as save from '../save.js';
 import { setPaused } from '../pause.js';
 import { unlock } from '../audio/engine.js';
 import * as chimes from '../audio/chimes.js';
-import { renderThumb } from './thumbs.js';
+import { renderPreview } from '../art/draw.js';
 import { toast } from './toast.js';
 
 const overlay = document.getElementById('splash');
@@ -48,7 +48,7 @@ function emptyThumb(icon) {
 
 function safeThumb(pieces) {
   try {
-    return renderThumb(pieces);
+    return renderPreview(pieces, 232, 130);
   } catch (err) {
     console.warn('thumbnail failed:', err);
     return emptyThumb('');

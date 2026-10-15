@@ -154,6 +154,37 @@ function orientBehavior(behavior, rot, flip) {
   return out;
 }
 
+/**
+ * The canvas transform [a, b, c, d, e, f] that takes an entry's own
+ * coordinates to its turned and mirrored footprint: the same mapping
+ * transformParts applies to the physics parts, so art drawn in the entry's
+ * coordinates lines up with the bodies.
+ * @returns {[number, number, number, number, number, number]}
+ */
+export function pieceMatrix(entry, rot, flip) {
+  let w = entry.cells[0] * GRID;
+  let h = entry.cells[1] * GRID;
+  /** @type {[number, number, number, number, number, number]} */
+  let m = flip ? [-1, 0, 0, 1, w, 0] : [1, 0, 0, 1, 0, 0];
+  for (let i = 0; i < rot; i++) {
+    m = compose([0, 1, -1, 0, h, 0], m); // (x, y) -> (h - y, x)
+    [w, h] = [h, w];
+  }
+  return m;
+}
+
+/** a after b, as canvas matrices. @returns {[number, number, number, number, number, number]} */
+function compose(a, b) {
+  return [
+    a[0] * b[0] + a[2] * b[1],
+    a[1] * b[0] + a[3] * b[1],
+    a[0] * b[2] + a[2] * b[3],
+    a[1] * b[2] + a[3] * b[3],
+    a[0] * b[4] + a[2] * b[5] + a[4],
+    a[1] * b[4] + a[3] * b[5] + a[5],
+  ];
+}
+
 /** Same transform for a single local point (used for dynamic pivots). */
 export function transformPoint(entry, pt, rot, flip) {
   let [x, y] = pt;

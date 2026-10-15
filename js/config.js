@@ -32,5 +32,9 @@ export const ROLL_VOICES = 8;
 export const IMPACT_VOICES = 10;
 export const CHIME_VOICES = 6;
 
-// Rendering
-export const MAX_DPR = 2;
+// Rendering: canvas backing-store pixels per board pixel. The scale follows
+// the screen (layout scale × devicePixelRatio) so the board maps 1:1 onto
+// device pixels, capped to bound canvas memory on big displays. A device
+// that can't hold 60 fps steps down toward RS_FLOOR.
+export const RS_MAX = 2.5;
+export const RS_FLOOR = 1.5;

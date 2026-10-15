@@ -5,14 +5,17 @@
 // ?test runs no animation loop and skips the start screen, so screenshots
 // and checks can step the game deterministically with __mr.tick(n).
 
-import { GAME_W, GAME_H, PHYS_DT, MAX_SUBSTEPS } from './config.js';
+import './polyfills.js';
+import { PHYS_DT, MAX_SUBSTEPS } from './config.js';
+import * as viewport from './viewport.js';
 import * as world from './world.js';
 import * as render from './render.js';
+import * as fx from './fx.js';
 import * as input from './input.js';
 import { board } from './board.js';
 import * as actions from './actions.js';
 import * as save from './save.js';
-import { buildPalette } from './ui/palette.js';
+import { buildPalette, refreshIcons } from './ui/palette.js';
 import { buildToolbar } from './ui/toolbar.js';
 import * as saveload from './ui/saveload.js';
 import * as splash from './ui/splash.js';
@@ -26,26 +29,19 @@ import * as chimes from './audio/chimes.js';
 const params = new URLSearchParams(location.search);
 const TEST = params.has('test');
 
-// ---------- scale the fixed-size game to the window ----------
-const gameEl = document.getElementById('game');
-function layout() {
-  let s = Math.min(window.innerWidth / GAME_W, window.innerHeight / GAME_H);
-  if (!isFinite(s) || s <= 0) s = 1;
-  gameEl.style.transform = `scale(${s})`;
-  gameEl.style.left = `${(window.innerWidth - GAME_W * s) / 2}px`;
-  gameEl.style.top = `${(window.innerHeight - GAME_H * s) / 2}px`;
-}
-window.addEventListener('resize', layout);
-window.addEventListener('orientationchange', () => setTimeout(layout, 100));
-
-// ---------- audio wiring ----------
+// ---------- sound and reactions ----------
 world.on('impact', (speed, marbleOnMarble, marble) => {
   impacts.trigger(speed, marbleOnMarble, marble);
 });
-world.on('chime', (note, speed, piece) => chimes.pieceSound(note, speed, piece));
+world.on('chime', (note, speed, piece) => {
+  chimes.pieceSound(note, speed, piece);
+  if (piece) fx.strike(piece, speed, world.simTime());
+});
 world.on('sensorEnter', (name, sensor, marble) => {
   if (name === 'funnel') chimes.funnelEnter(marble.id);
   else if (name === 'basket') chimes.plink();
+  const piece = sensor.plugin?.piece;
+  if (piece) fx.strike(piece, 1, world.simTime());
 });
 world.on('sensorExit', (name, sensor, marble) => {
   if (name === 'funnel') chimes.funnelExit(marble.id);
@@ -62,7 +58,7 @@ for (const type of ['pointerdown', 'pointerup', 'touchend']) {
 }
 
 // ---------- board and session wiring ----------
-board.onChange(() => render.rebuildStatic());
+board.onChange(() => render.invalidateStatic());
 
 // save the build before the tab goes away (pagehide alone is unreliable on iOS)
 document.addEventListener('visibilitychange', () => {
@@ -73,21 +69,43 @@ window.addEventListener('pagehide', () => save.flushAutosave());
 
 // ---------- debug HUD ----------
 let hudOn = params.has('debug');
-let frameMs = 16.7;
+let workMs = 8;  // physics + drawing per frame (smoothed)
+let physMs = 0;
 window.addEventListener('keydown', (e) => {
   if (e.key === 'd' || e.key === 'D') hudOn = !hudOn;
 });
 
+const f1 = (v) => v.toFixed(1);
 function hud() {
-  return hudOn ? {
-    line1: `frame ${frameMs.toFixed(1)}ms  bodies ${world.bodyCount()}`,
-    line2: `marbles ${world.marbles.length}  rollvoices ${rolling.activeVoices()}`,
-  } : null;
+  if (!hudOn) return null;
+  const ms = render.stats.ms;
+  return {
+    lines: [
+      `frame ${f1(workMs)} ms  physics ${f1(physMs)}  rs ${viewport.view.rs.toFixed(2)}`,
+      `draw: static ${f1(ms.static)}  live ${f1(ms.overlay + ms.live)}  moving ${f1(ms.dynamic)}  marbles ${f1(ms.marbles)}`,
+      `marbles ${world.marbles.length}  bodies ${world.bodyCount()}  voices ${rolling.activeVoices()}  repaints ${render.stats.staticRebuilds}`,
+    ],
+  };
 }
 
 // ---------- main loop ----------
 let last = performance.now();
 let acc = 0;
+
+// a device that can't hold 60 fps draws at a lower resolution
+const BUDGET_MS = 14;
+let overBudgetSince = 0;
+function watchBudget(now) {
+  if (isPaused() || workMs <= BUDGET_MS) {
+    overBudgetSince = 0;
+  } else if (!overBudgetSince) {
+    overBudgetSince = now;
+  } else if (now - overBudgetSince > 3000) {
+    viewport.lowerQuality();
+    overBudgetSince = 0;
+    workMs = BUDGET_MS * 0.8; // measure afresh at the new size
+  }
+}
 
 function frame(now) {
   const dt = Math.min(now - last, 50);
@@ -107,10 +125,14 @@ function frame(now) {
 
     rolling.update(world.marbles, world.isRolling);
   }
+  const t1 = performance.now();
 
-  render.frame(input.getGhost(), hud());
+  // animations run on sim time, so they hold still while the game is paused
+  render.frame(input.getGhost(), hud(), world.simTime() + acc);
 
-  frameMs = frameMs * 0.95 + (performance.now() - t0) * 0.05;
+  physMs = physMs * 0.9 + (t1 - t0) * 0.1;
+  workMs = workMs * 0.95 + (performance.now() - t0) * 0.05;
+  watchBudget(now);
   requestAnimationFrame(frame);
 }
 
@@ -120,21 +142,28 @@ function tick(n = 1) {
     input.tick();
     world.step(PHYS_DT);
   }
-  render.frame(input.getGhost(), hud());
+  render.frame(input.getGhost(), hud(), world.simTime());
 }
 
 // debug/testing handle (the site's walkthrough recorder uses loadPieces)
-window.__mr = { world, board, save, actions, loadPieces: actions.loadPieces, render, input, tick };
+window.__mr = {
+  world, board, save, actions, loadPieces: actions.loadPieces,
+  render, viewport, fx, input, tick,
+};
 
 // ---------- boot ----------
-render.setupCanvas();
+viewport.init(document.getElementById('game'));
+render.init();
+viewport.onChange(() => {
+  render.resize();
+  refreshIcons();
+});
 buildPalette();
 buildToolbar(saveload.show, () => splash.show({ closable: true }));
 initOrientation();
-layout();
 
 if (TEST) {
-  render.frame(null, hud());
+  render.frame(null, hud(), world.simTime());
 } else {
   // the loop runs first, so a failure building the start screen can't
   // leave a frozen game

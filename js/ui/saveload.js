@@ -8,7 +8,7 @@ import * as save from '../save.js';
 import { replaceBoard, undo } from '../actions.js';
 import { board } from '../board.js';
 import { setPaused } from '../pause.js';
-import { renderThumb } from './thumbs.js';
+import { renderPreview } from '../art/draw.js';
 import { toast } from './toast.js';
 import { armable } from './confirm.js';
 
@@ -46,7 +46,7 @@ function thumbFor(doc) {
     img.src = doc.thumb;
     return img;
   }
-  const c = renderThumb(doc.pieces, 240, 158);
+  const c = renderPreview(doc.pieces, 240, 158);
   c.className = 'slot-thumb';
   c.style.width = '';   // sized by the card's CSS instead
   c.style.height = '';

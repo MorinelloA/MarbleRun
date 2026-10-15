@@ -1,6 +1,6 @@
 // @ts-check
 // Declarative catalog of every piece type. Geometry is data-only;
-// piece.js turns it into Matter bodies, render.js paints the parts.
+// piece.js turns it into Matter bodies, and js/art/ draws the same parts.
 //
 // Entry shape:
 //   id, name, cells:[w,h], color,
