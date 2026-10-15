@@ -34,12 +34,31 @@ export function fit(iw, ih, dpr, cap = RS_MAX) {
   return { s, dpr, rs, left, top };
 }
 
+let probe = null;
+
+/** The screen's safe-area insets in CSS px, read off a hidden element
+ *  padded by them (padding resolves env() to px in every browser). */
+function safeInsets() {
+  if (!probe) {
+    probe = document.createElement('div');
+    probe.setAttribute('aria-hidden', 'true');
+    probe.style.cssText = 'position:fixed;top:0;left:0;visibility:hidden;pointer-events:none;' +
+      'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+    document.body.appendChild(probe);
+  }
+  const cs = getComputedStyle(probe);
+  const px = (v) => parseFloat(v) || 0;
+  return { top: px(cs.paddingTop), right: px(cs.paddingRight), bottom: px(cs.paddingBottom), left: px(cs.paddingLeft) };
+}
+
 function apply() {
   const dpr = window.devicePixelRatio || 1;
-  const v = fit(window.innerWidth, window.innerHeight, dpr, rsCap);
+  // the stage fits inside the safe area, clear of the home indicator
+  const inset = safeInsets();
+  const v = fit(window.innerWidth - inset.left - inset.right, window.innerHeight - inset.top - inset.bottom, dpr, rsCap);
   gameEl.style.transform = `scale(${v.s})`;
-  gameEl.style.left = `${v.left}px`;
-  gameEl.style.top = `${v.top}px`;
+  gameEl.style.left = `${Math.round((v.left + inset.left) * dpr) / dpr}px`;
+  gameEl.style.top = `${Math.round((v.top + inset.top) * dpr) / dpr}px`;
   document.documentElement.style.setProperty('--game-scale', String(v.s));
   view.s = v.s;
   if (v.rs !== view.rs || v.dpr !== view.dpr) {

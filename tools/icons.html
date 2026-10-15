@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App icons</title>
+<style>
+  body { margin: 0; padding: 20px; background: #1a1a1f; color: #f3f1ec; font: 13px system-ui, sans-serif; }
+  .row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
+  figure { margin: 0; text-align: center; }
+  canvas { display: block; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<!-- Dev page: draws the app's icons with the game's own art. Each canvas is
+     the file it's named after; save them into icons/ (window.iconFiles()
+     returns them as data URLs). -->
+<div class="row" id="icons"></div>
+<script src="../vendor/matter.min.js"></script>
+<script type="module" src="icons.js"></script>
+</body>
+</html>
