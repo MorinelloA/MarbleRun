@@ -1,0 +1,175 @@
+{
+  "preset": "spinfactory",
+  "seconds": 40,
+  "extra": 0,
+  "every": 1.5,
+  "steps": 4800,
+  "marbles": [
+    {
+      "i": 0,
+      "spawnS": 0,
+      "laps": 0,
+      "maxStallS": 0,
+      "everFloor": true,
+      "final": "floor",
+      "pos": [
+        445,
+        617
+      ]
+    },
+    {
+      "i": 1,
+      "spawnS": 0,
+      "laps": 0,
+      "maxStallS": 0,
+      "everFloor": true,
+      "final": "floor",
+      "pos": [
+        817,
+        617
+      ]
+    }
+  ],
+  "pieces": {
+    "ramp@1,0": {
+      "t": "ramp",
+      "hits": 3,
+      "hardHits": 3,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "ramp@2,1": {
+      "t": "ramp",
+      "hits": 2,
+      "hardHits": 2,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "spinner@3,2": {
+      "t": "spinner",
+      "hits": 1,
+      "hardHits": 1,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "seesaw@5,5": {
+      "t": "seesaw",
+      "hits": 2,
+      "hardHits": 2,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "windmill@8,5": {
+      "t": "windmill",
+      "hits": 2,
+      "hardHits": 2,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "spinner@9,6": {
+      "t": "spinner",
+      "hits": 0,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "uturn@1,6": {
+      "t": "uturn",
+      "hits": 0,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "tramp@7,8": {
+      "t": "tramp",
+      "hits": 1,
+      "hardHits": 1,
+      "enters": 0,
+      "chimes": 1,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "bumper@12,7": {
+      "t": "bumper",
+      "hits": 0,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "bell@11,4": {
+      "t": "bell",
+      "hits": 0,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "basket@14,8": {
+      "t": "basket",
+      "hits": 1,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    }
+  },
+  "reachedTypes": [
+    "basket",
+    "ramp",
+    "seesaw",
+    "spinner",
+    "tramp",
+    "windmill"
+  ],
+  "untouched": [
+    "spinner@9,6",
+    "uturn@1,6",
+    "bumper@12,7",
+    "bell@11,4"
+  ],
+  "totals": {
+    "marbles": 2,
+    "laps": 0,
+    "leaked": 2,
+    "culled": 0,
+    "maxStallS": 0,
+    "chimes": 1,
+    "hardHits": 1,
+    "launches": 0,
+    "cannonEnters": 0,
+    "sensorEnterEv": 0,
+    "sensorExitEv": 0,
+    "stuckSensorPairs": 0,
+    "nan": false
+  },
+  "traceHash": "8acef62c67b68898702b25fab8f7d8a981972894"
+}

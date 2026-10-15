@@ -4,13 +4,13 @@
     {
       "name": "marblerun",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8321", "--directory", "C:\\Repos\\MarbleRun"],
+      "runtimeArgs": ["C:\\Repos\\MarbleRun\\tools\\devserver.py", "8321"],
       "port": 8321
     },
     {
       "name": "marblerun-alt",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8322", "--directory", "C:\\Repos\\MarbleRun"],
+      "runtimeArgs": ["C:\\Repos\\MarbleRun\\tools\\devserver.py", "8322"],
       "port": 8322
     }
   ]

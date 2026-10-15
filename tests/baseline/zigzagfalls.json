@@ -1,0 +1,162 @@
+{
+  "preset": "zigzagfalls",
+  "seconds": 40,
+  "extra": 0,
+  "every": 1.5,
+  "steps": 4800,
+  "marbles": [
+    {
+      "i": 0,
+      "spawnS": 0,
+      "laps": 0,
+      "maxStallS": 0,
+      "everFloor": true,
+      "final": "floor",
+      "pos": [
+        616,
+        608
+      ]
+    },
+    {
+      "i": 1,
+      "spawnS": 0,
+      "laps": 0,
+      "maxStallS": 0,
+      "everFloor": true,
+      "final": "floor",
+      "pos": [
+        206,
+        617
+      ]
+    }
+  ],
+  "pieces": {
+    "zigzag@6,0": {
+      "t": "zigzag",
+      "hits": 8,
+      "hardHits": 1,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "zigzag@4,2f": {
+      "t": "zigzag",
+      "hits": 10,
+      "hardHits": 10,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "zigzag@6,4": {
+      "t": "zigzag",
+      "hits": 10,
+      "hardHits": 10,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "zigzag@4,6f": {
+      "t": "zigzag",
+      "hits": 10,
+      "hardHits": 10,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "xylo1@7,8": {
+      "t": "xylo1",
+      "hits": 3,
+      "hardHits": 3,
+      "enters": 0,
+      "chimes": 3,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "xylo2@8,8": {
+      "t": "xylo2",
+      "hits": 2,
+      "hardHits": 2,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "xylo3@9,8": {
+      "t": "xylo3",
+      "hits": 2,
+      "hardHits": 1,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "basket@10,8": {
+      "t": "basket",
+      "hits": 0,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "bell@3,4": {
+      "t": "bell",
+      "hits": 0,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "bumper@11,5": {
+      "t": "bumper",
+      "hits": 0,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    }
+  },
+  "reachedTypes": [
+    "xylo1",
+    "xylo2",
+    "xylo3",
+    "zigzag"
+  ],
+  "untouched": [
+    "basket@10,8",
+    "bell@3,4",
+    "bumper@11,5"
+  ],
+  "totals": {
+    "marbles": 2,
+    "laps": 0,
+    "leaked": 2,
+    "culled": 0,
+    "maxStallS": 0,
+    "chimes": 3,
+    "hardHits": 6,
+    "launches": 0,
+    "cannonEnters": 0,
+    "sensorEnterEv": 0,
+    "sensorExitEv": 0,
+    "stuckSensorPairs": 0,
+    "nan": false
+  },
+  "traceHash": "6fe710e7b6c89889b21d56040974b775cf7ff08c"
+}

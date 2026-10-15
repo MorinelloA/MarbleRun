@@ -1,0 +1,235 @@
+{
+  "preset": "loopcity",
+  "seconds": 40,
+  "extra": 0,
+  "every": 1.5,
+  "steps": 4800,
+  "marbles": [
+    {
+      "i": 0,
+      "spawnS": 0,
+      "laps": 3,
+      "maxStallS": 33.44,
+      "everFloor": false,
+      "final": "stuck",
+      "pos": [
+        636,
+        419
+      ]
+    },
+    {
+      "i": 1,
+      "spawnS": 0,
+      "laps": 2,
+      "maxStallS": 0,
+      "everFloor": true,
+      "final": "floor",
+      "pos": [
+        1122,
+        617
+      ]
+    }
+  ],
+  "pieces": {
+    "ramp@0,0": {
+      "t": "ramp",
+      "hits": 3,
+      "hardHits": 3,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "ramp@1,1": {
+      "t": "ramp",
+      "hits": 1,
+      "hardHits": 1,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "ramp@2,2": {
+      "t": "ramp",
+      "hits": 1,
+      "hardHits": 1,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "ramp@3,3": {
+      "t": "ramp",
+      "hits": 1,
+      "hardHits": 1,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "ramp@4,4": {
+      "t": "ramp",
+      "hits": 0,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "straight@5,5": {
+      "t": "straight",
+      "hits": 1,
+      "hardHits": 1,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "straight@6,5": {
+      "t": "straight",
+      "hits": 1,
+      "hardHits": 1,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "loop@7,4": {
+      "t": "loop",
+      "hits": 8,
+      "hardHits": 6,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "straight@9,5": {
+      "t": "straight",
+      "hits": 4,
+      "hardHits": 3,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "loop@10,4": {
+      "t": "loop",
+      "hits": 11,
+      "hardHits": 7,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "straight@12,5": {
+      "t": "straight",
+      "hits": 1,
+      "hardHits": 1,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "bumper@14,6": {
+      "t": "bumper",
+      "hits": 1,
+      "hardHits": 1,
+      "enters": 0,
+      "chimes": 1,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "bell@12,8": {
+      "t": "bell",
+      "hits": 0,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "xylo1@13,8": {
+      "t": "xylo1",
+      "hits": 0,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "xylo2@14,8": {
+      "t": "xylo2",
+      "hits": 0,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "xylo3@15,8": {
+      "t": "xylo3",
+      "hits": 0,
+      "hardHits": 0,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    },
+    "basket@16,8": {
+      "t": "basket",
+      "hits": 2,
+      "hardHits": 1,
+      "enters": 0,
+      "chimes": 0,
+      "launches": 0,
+      "sensorEnterEv": 0,
+      "sensorExitEv": 0
+    }
+  },
+  "reachedTypes": [
+    "basket",
+    "bumper",
+    "loop",
+    "ramp",
+    "straight"
+  ],
+  "untouched": [
+    "ramp@4,4",
+    "bell@12,8",
+    "xylo1@13,8",
+    "xylo2@14,8",
+    "xylo3@15,8"
+  ],
+  "totals": {
+    "marbles": 2,
+    "laps": 5,
+    "leaked": 1,
+    "culled": 0,
+    "maxStallS": 33.44,
+    "chimes": 1,
+    "hardHits": 1,
+    "launches": 0,
+    "cannonEnters": 0,
+    "sensorEnterEv": 0,
+    "sensorExitEv": 0,
+    "stuckSensorPairs": 0,
+    "nan": false
+  },
+  "traceHash": "72a09be9da66995fee0cad56f8e10a54d48b5bb6"
+}
