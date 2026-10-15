@@ -1,34 +1,32 @@
 // @ts-check
-// Collision transients: short filtered noise bursts. Pooled filter/gain
-// chains; a fresh (cheap) BufferSource is created per hit. Rate-limited so
+// Knocks: a marble striking something sounds like what it struck, a warm
+// wooden "tok" on track, deeper on blocks, a thud on the floor and a glassy
+// tick on another marble, as loud as it struck (its speed into the
+// surface, so rolling over a seam stays quiet). Each material's knock is
+// rendered once; pooled filter/gain chains play them, rate-limited so
 // marble pile-ups don't machine-gun.
 
 import { IMPACT_VOICES } from '../config.js';
 import { onReady, buses, soundContext } from './engine.js';
+import {
+  KNOCKS, KNOCK_MIN_GAIN, renderKnock, knockChain, playKnock, knockStrength, knockGain, materialOf, toBuffer,
+} from './recipes.js';
 
-/** @type {{filter:any, gain:any, busyUntil:number}[]} */
+/** @type {{filter:BiquadFilterNode, gain:GainNode, busyUntil:number}[]} */
 const chains = [];
-let burstBuffer = null;
+/** material -> its rendered knock and level */
+const knocks = {};
 
 // rate limiting
 const recent = []; // timestamps of recent triggers
-const perMarble = new Map(); // marble.id -> last trigger time
+const perMarble = new Map(); // marble.id -> {t, gain} of its last knock
 
 onReady((ctx) => {
-  const len = Math.floor(ctx.sampleRate * 0.03);
-  burstBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
-  const d = burstBuffer.getChannelData(0);
-  for (let i = 0; i < len; i++) {
-    d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  for (const [name, recipe] of Object.entries(KNOCKS)) {
+    knocks[name] = { buffer: toBuffer(ctx, renderKnock(ctx.sampleRate, recipe)), level: recipe.level };
   }
   for (let i = 0; i < IMPACT_VOICES; i++) {
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.Q.value = 2;
-    const gain = ctx.createGain();
-    gain.gain.value = 0;
-    filter.connect(gain).connect(buses.impact);
-    chains.push({ filter, gain, busyUntil: 0 });
+    chains.push({ ...knockChain(ctx, buses.impact), busyUntil: 0 });
   }
 });
 
@@ -38,38 +36,31 @@ export function forget(marbleId) {
 }
 
 /**
- * @param {number} speed relative impact speed
- * @param {boolean} marbleOnMarble glassy clack instead of a thock
+ * @param {number} into the marble's speed into the surface it struck
+ * @param {any} other the body it struck
  * @param {any} marble the marble body (for per-marble cooldown)
  */
-export function trigger(speed, marbleOnMarble, marble) {
+export function trigger(into, other, marble) {
   const ctx = soundContext();
-  if (!ctx || !burstBuffer) return;
+  if (!ctx || chains.length === 0) return;
+  const knock = knocks[materialOf(other)];
+  const s = knockStrength(into);
+  const gain = knockGain(s, knock.level);
+  if (gain < KNOCK_MIN_GAIN) return;
   const now = performance.now();
 
   // global: max 6 per 50ms window
   while (recent.length && now - recent[0] > 50) recent.shift();
   if (recent.length >= 6) return;
-  // per-marble 60ms cooldown
-  const last = perMarble.get(marble.id) || 0;
-  if (now - last < 60) return;
+  // per-marble 60ms cooldown, unless this knock is much the harder
+  const last = perMarble.get(marble.id);
+  if (last && now - last.t < 60 && gain < 2 * last.gain) return;
 
   const chain = chains.find(c => c.busyUntil <= now);
   if (!chain) return;
-  chain.busyUntil = now + 110;
   recent.push(now);
-  perMarble.set(marble.id, now);
+  perMarble.set(marble.id, { t: now, gain });
 
-  const t = ctx.currentTime;
-  const vol = Math.min(speed / 15, 1) * (marbleOnMarble ? 0.7 : 0.9);
-  chain.filter.frequency.setValueAtTime(
-    marbleOnMarble ? 2500 : 1000 + speed * 150, t);
-  chain.gain.gain.cancelScheduledValues(t);
-  chain.gain.gain.setValueAtTime(vol, t);
-  chain.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-
-  const src = ctx.createBufferSource();
-  src.buffer = burstBuffer;
-  src.connect(chain.filter);
-  src.start(t);
+  const seconds = playKnock(ctx, chain, knock.buffer, knock.level, s, ctx.currentTime);
+  chain.busyUntil = now + seconds * 1000;
 }

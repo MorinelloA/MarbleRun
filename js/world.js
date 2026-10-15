@@ -4,7 +4,7 @@
 
 import {
   BOARD_W, BOARD_H, MARBLE_R, MAX_MARBLES, SPEED_CLAMP, GRID, GRID_X, COLS,
-  IMPACT_MIN_SPEED, CHIME_MIN_SPEED, FLOOR_Y,
+  HIT_MIN_SPEED, BOUNCE_MIN_SPEED, CHIME_MIN_SPEED, FLOOR_Y,
 } from './config.js';
 import { NOTES } from './music.js';
 import * as behaviors from './behaviors.js';
@@ -30,18 +30,32 @@ engine.gravity.y = 1;
 /** @type {any[]} live marble bodies, oldest first */
 export const marbles = [];
 
-/** marble.id -> number of active non-sensor contacts */
-const contactCounts = new Map();
+/** marble.id -> its active contacts with pieces, the floor and the walls,
+ *  counted apart for music pieces (bars and bells, whose notes are the
+ *  sound) and everything else */
+const contacts = new Map();
 
-/** marble.id -> performance.now() of the last touch. Rolling audio treats
- *  "touched very recently" as rolling — raw contact flickers every few
- *  steps as the marble micro-bounces, which would make the sound flutter. */
-const lastContact = new Map();
+/** marble.id -> {t, kind} of its last touch (sim ms). The rolling sound
+ *  treats "touched very recently" as still touching: raw contact flickers
+ *  every few steps as the marble micro-bounces, which would make the sound
+ *  flutter. */
+const lastTouch = new Map();
 const CONTACT_STICKY_MS = 120;
 
-export function isRolling(marbleId) {
-  if ((contactCounts.get(marbleId) || 0) > 0) return true;
-  return performance.now() - (lastContact.get(marbleId) || -1e9) < CONTACT_STICKY_MS;
+/** marble.id -> sim ms it last let go of everything. A marble touching
+ *  something, or only just off it, is rolling on, not landing. */
+const lastLeft = new Map();
+const SETTLED_MS = 50;
+
+/** What a marble is rolling on, for its sound: 'solid', 'music' (only bars
+ *  or bells, which make their own) or null (in the air, or only touching
+ *  other marbles). */
+export function rollingOn(marbleId) {
+  const c = contacts.get(marbleId);
+  if (c?.solid > 0) return 'solid';
+  if (c?.music > 0) return 'music';
+  const last = lastTouch.get(marbleId);
+  return last && engine.timing.timestamp - last.t < CONTACT_STICKY_MS ? last.kind : null;
 }
 
 // ---- event fan-out (audio and visual effects subscribe to these) ----
@@ -94,8 +108,9 @@ export function spawnMarble(x, y) {
 export function removeMarble(b, fade = false) {
   const i = marbles.indexOf(b);
   if (i >= 0) marbles.splice(i, 1);
-  contactCounts.delete(b.id);
-  lastContact.delete(b.id);
+  contacts.delete(b.id);
+  lastTouch.delete(b.id);
+  lastLeft.delete(b.id);
   World.remove(engine.world, b);
   emit('marbleRemoved', b, fade);
 }
@@ -139,16 +154,35 @@ function sensorName(body) {
   return b ? (b.name || b.type) : body.label;
 }
 
-function touch(m) {
-  contactCounts.set(m.id, (contactCounts.get(m.id) || 0) + 1);
-  lastContact.set(m.id, performance.now());
+/** What a marble touched, for the sound: another marble, a music piece
+ *  (bars and bells ring, bumpers and bouncers boing: their sound is their
+ *  own, so no knock or rumble goes on top) or anything else. */
+function kindOf(body) {
+  if (body.label === 'marble') return 'marble';
+  const t = body.plugin?.behavior?.type;
+  return t === 'chime' || t === 'bounce' ? 'music' : 'solid';
 }
-function untouch(m) {
-  const n = (contactCounts.get(m.id) || 1) - 1;
-  if (n <= 0) contactCounts.delete(m.id); else contactCounts.set(m.id, n);
+
+function touch(m, kind) {
+  const c = contacts.get(m.id) || { solid: 0, music: 0 };
+  c[kind]++;
+  contacts.set(m.id, c);
+  lastTouch.set(m.id, { t: engine.timing.timestamp, kind });
+}
+function untouch(m, kind) {
+  const c = contacts.get(m.id);
+  if (!c) return;
+  c[kind] = Math.max(0, c[kind] - 1);
+  if (c.solid + c.music === 0) {
+    contacts.delete(m.id);
+    lastLeft.set(m.id, engine.timing.timestamp);
+  }
 }
 
 Events.on(engine, 'collisionStart', (ev) => {
+  const now = engine.timing.timestamp;
+  const settled = new Map(); // marble -> already rolling on something
+  const hardest = new Map(); // marble -> its hardest knock: one per step
   for (const pair of ev.pairs) {
     const m = marbleOf(pair);
     if (!m) continue;
@@ -159,23 +193,34 @@ Events.on(engine, 'collisionStart', (ev) => {
       continue;
     }
 
-    // contact bookkeeping (rolling sound needs "is touching anything");
-    // a marble-on-marble contact counts for both
-    const isMarble = other.label === 'marble';
-    touch(m);
-    if (isMarble) touch(other);
+    // contact bookkeeping: the rolling sound needs what each marble rolls on
+    if (!settled.has(m)) settled.set(m, contacts.has(m.id) || now - (lastLeft.get(m.id) ?? -Infinity) < SETTLED_MS);
+    const kind = kindOf(other);
+    if (kind !== 'marble') touch(m, kind);
 
-    const rel = Vector.magnitude(Vector.sub(m.velocity, rootOf(other).velocity || { x: 0, y: 0 }));
-    if (rel > IMPACT_MIN_SPEED) emit('impact', rel, isMarble, m);
+    const dv = Vector.sub(m.velocity, rootOf(other).velocity || { x: 0, y: 0 });
+    const rel = Vector.magnitude(dv);
     const bh = other.plugin?.behavior;
     if (bh?.type === 'chime' && rel > CHIME_MIN_SPEED) {
-      // music sounds for slow marbles too; the note is the placed piece's
+      // music sounds for slow marbles too, and for marbles rolling from bar
+      // to bar (so by the whole speed); the note is the placed piece's
       const piece = pieceOf(other);
       emit('chime', piece?.note != null ? String(NOTES[piece.note].hz) : bh.note, rel, piece);
-    } else if (bh?.type === 'bounce' && rel > IMPACT_MIN_SPEED) {
+    } else if (bh?.type === 'bounce' && rel > BOUNCE_MIN_SPEED) {
       emit('chime', bh.sound, rel, pieceOf(other));
+    } else if (kind !== 'music') {
+      // a knock is as loud as the marble struck: its speed into the surface,
+      // not along it (Matter hasn't resolved the contact yet, so this is the
+      // speed it arrived with). A marble rolling on knocks only where the
+      // surface turns sharply under it, not at every seam or facet of a curve.
+      const n = pair.collision.normal;
+      const into = Math.abs(dv.x * n.x + dv.y * n.y);
+      const along = Math.abs(dv.x * n.y - dv.y * n.x);
+      const min = settled.get(m) ? Math.max(1.4 * HIT_MIN_SPEED, 0.5 * along) : HIT_MIN_SPEED;
+      if (into > min && into > (hardest.get(m)?.into ?? 0)) hardest.set(m, { into, other });
     }
   }
+  for (const [m, knock] of hardest) emit('impact', knock.into, knock.other, m);
 });
 
 Events.on(engine, 'collisionEnd', (ev) => {
@@ -187,8 +232,8 @@ Events.on(engine, 'collisionEnd', (ev) => {
       emit('sensorExit', sensorName(other), other, m);
       continue;
     }
-    untouch(m);
-    if (other.label === 'marble') untouch(other);
+    const kind = kindOf(other);
+    if (kind !== 'marble') untouch(m, kind);
   }
 });
 

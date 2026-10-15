@@ -88,8 +88,9 @@ The minimum is iPadOS 15 (Safari 15). The stage is a fixed 1133 by 744 points, i
 | `js/input.js` | touch and mouse: drag pieces, tap to turn or tune, hold to mirror, fling marbles |
 | `js/save.js`, `js/share.js` | saved runs, autosave, backups and share links, all validated by `parseDoc` |
 | `js/ui/` | toolbar, tray, start screen (and its toy), the runs dialog, toast and first-run tips |
-| `js/audio/` | the synthesized sound |
+| `js/audio/` | the synthesized sound; `recipes.js` is what each sound is made of |
 | `tools/catalog-sheet.html` | every piece in every orientation, art with its physics outlines on top |
+| `tools/sound-sheet.html` | every sound effect to listen to, measured against a bar's note (rumbles and knocks stay under the music) |
 | `tools/icons.html` | draws the app icons |
 
 Colours live in `js/theme.js`, mirrored by `css/style.css`. Tests hold them together and enforce no pink anywhere.

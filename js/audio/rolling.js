@@ -1,40 +1,33 @@
 // @ts-check
-// The star feature: continuous per-marble rolling sound.
-// A pool of voices (looped noise -> bandpass -> gain) is assigned to the
-// loudest marbles each frame; filter frequency, gain and playback rate all
-// track marble speed, and airborne marbles fade to silence so landings pop.
+// The sound of marbles rolling: a soft rumble for each marble rolling on a
+// track. A pool of voices is handed to the loudest marbles each frame; a
+// voice's loudness, brightness and flutter follow its marble's speed.
+// Marbles rolling on bars or bells are left quiet (their notes are the
+// sound), and airborne ones fade out, so landings stand out.
 
 import { ROLL_VOICES } from '../config.js';
-import { onReady, buses, getNoiseBuffer, context } from './engine.js';
+import { onReady, buses, context, rumbleBuffer } from './engine.js';
+import { rumbleVoice, rollLevel, rollCutoff, rollFlutter } from './recipes.js';
 
-/** @type {{src:any, filter:any, gain:any, rateBase:number, marbleId:number|null, score:number, last:number[]}[]} */
+/** @type {{lows:BiquadFilterNode[], lfo:OscillatorNode, level:GainNode, rate:number, marbleId:number|null, score:number, last:number[]}[]} */
 const voices = [];
 
 onReady((ctx) => {
   for (let i = 0; i < ROLL_VOICES; i++) {
-    const src = ctx.createBufferSource();
-    src.buffer = getNoiseBuffer();
-    src.loop = true;
-    const rateBase = 0.8 + Math.random() * 0.15; // slight per-voice character
-    src.playbackRate.value = rateBase;
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.value = 400;
-    filter.Q.value = 0.9;
-    const gain = ctx.createGain();
-    gain.gain.value = 0;
-    src.connect(filter).connect(gain).connect(buses.rolling);
-    src.start();
-    voices.push({ src, filter, gain, rateBase, marbleId: null, score: 0, last: [0, 0, 0] });
+    voices.push({
+      ...rumbleVoice(ctx, buses.rolling, rumbleBuffer()),
+      rate: 0.95 + Math.random() * 0.1, // marbles side by side don't flutter in step
+      marbleId: null, score: 0, last: [0, 0, 0],
+    });
   }
 });
 
-/** Schedule a parameter change only when it moved noticeably: this runs for
+/** Schedule a change only when the value moved noticeably: this runs for
  *  every voice on every frame. */
-function steer(v, i, param, value, t) {
-  if (Math.abs(value - v.last[i]) <= Math.max(0.002, Math.abs(v.last[i]) * 0.02)) return;
+function steer(v, i, params, value, t) {
+  if (Math.abs(value - v.last[i]) <= Math.max(0.0005, Math.abs(v.last[i]) * 0.02)) return;
   v.last[i] = value;
-  param.setTargetAtTime(value, t, 0.05);
+  for (const p of params) p.setTargetAtTime(value, t, 0.05);
 }
 
 /** Free a removed marble's voice right away instead of on the next frame. */
@@ -44,24 +37,24 @@ export function releaseMarble(marbleId) {
       v.marbleId = null;
       v.score = 0;
       v.last[0] = 0;
-      if (context()) v.gain.gain.setTargetAtTime(0, context().currentTime, 0.03);
+      if (context()) v.level.gain.setTargetAtTime(0, context().currentTime, 0.03);
     }
   }
 }
 
 /**
  * @param {any[]} marbles Matter marble bodies
- * @param {(id: number) => boolean} isRolling sticky contact test
+ * @param {(id: number) => string | null} rollingOn what each marble rolls on
  */
-export function update(marbles, isRolling) {
+export function update(marbles, rollingOn) {
   const ctx = context();
   if (!ctx || voices.length === 0) return;
   const t = ctx.currentTime;
 
-  // score every marble: only touching + moving marbles make rolling noise
+  // score every marble: only marbles moving on a track make a rumble
   const byId = new Map();
   for (const m of marbles) {
-    byId.set(m.id, { m, score: isRolling(m.id) ? m.speed : 0 });
+    byId.set(m.id, { m, score: rollingOn(m.id) === 'solid' ? m.speed : 0 });
   }
 
   // keep sticky assignments that are still valid
@@ -74,7 +67,7 @@ export function update(marbles, isRolling) {
       v.marbleId = null;
       v.score = 0;
       v.last[0] = 0;
-      v.gain.gain.setTargetAtTime(0, t, 0.03);
+      v.level.gain.setTargetAtTime(0, t, 0.03);
     }
   }
 
@@ -102,11 +95,9 @@ export function update(marbles, isRolling) {
     if (v.marbleId === null) continue;
     const e = byId.get(v.marbleId);
     const speed = e.m.speed;
-    const touching = e.score > 0;
-    const gain = touching ? Math.min(speed / 14, 1) * 0.5 : 0;
-    steer(v, 0, v.gain.gain, gain, t);
-    steer(v, 1, v.filter.frequency, 250 + speed * 55, t);
-    steer(v, 2, v.src.playbackRate, v.rateBase + speed / 30, t);
+    steer(v, 0, [v.level.gain], e.score > 0 ? rollLevel(speed) : 0, t);
+    steer(v, 1, v.lows.map(f => f.frequency), rollCutoff(speed), t);
+    steer(v, 2, [v.lfo.frequency], rollFlutter(speed) * v.rate, t);
   }
 }
 

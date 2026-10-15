@@ -4,7 +4,8 @@
 // placing / rotating / deleting pieces.
 
 import { CHIME_VOICES } from '../config.js';
-import { onReady, buses, context, soundContext, getNoiseBuffer } from './engine.js';
+import { onReady, buses, soundContext, rumbleBuffer } from './engine.js';
+import { fmNote, rumbleVoice, swirl } from './recipes.js';
 
 const PENTATONIC = [523.25, 587.33, 659.25, 783.99, 880]; // C5 D5 E5 G5 A5
 let liveChimes = 0;
@@ -14,24 +15,7 @@ export function strike(freq, vol = 0.8, decay = 1.8) {
   const ctx = soundContext();
   if (!ctx || liveChimes >= CHIME_VOICES) return;
   liveChimes++;
-  const t = ctx.currentTime;
-
-  const carrier = ctx.createOscillator();
-  carrier.frequency.value = freq;
-  const mod = ctx.createOscillator();
-  mod.frequency.value = freq * 1.41; // inharmonic — bell-like
-  const modGain = ctx.createGain();
-  modGain.gain.setValueAtTime(90, t);
-  modGain.gain.exponentialRampToValueAtTime(1, t + 0.4);
-  const out = ctx.createGain();
-  out.gain.setValueAtTime(0, t);
-  out.gain.linearRampToValueAtTime(vol * 0.5, t + 0.002);
-  out.gain.exponentialRampToValueAtTime(0.001, t + decay);
-
-  mod.connect(modGain).connect(carrier.frequency);
-  carrier.connect(out).connect(buses.chime);
-  mod.start(t); carrier.start(t);
-  mod.stop(t + decay + 0.05); carrier.stop(t + decay + 0.05);
+  const carrier = fmNote(ctx, buses.chime, ctx.currentTime, freq, vol, decay);
   carrier.onended = () => { liveChimes--; };
 }
 
@@ -109,46 +93,17 @@ export function plink() {
   strike(660, 0.4, 0.5);
 }
 
-// ---- funnel swirl: one shared voice, on while any marble is in a funnel ----
-let swirl = null;
-const inFunnel = new Set(); // marble ids currently inside a funnel throat
+// ---- funnel swirl: one shared voice, a whirr each time a marble drops in ----
+// A rumble, like the rolling sound's (and on its bus, under the notes).
+let swirlVoice = null;
 
 onReady((ctx) => {
-  const src = ctx.createBufferSource();
-  src.buffer = getNoiseBuffer();
-  src.loop = true;
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.value = 500;
-  filter.Q.value = 3;
-  const gain = ctx.createGain();
-  gain.gain.value = 0;
-  src.connect(filter).connect(gain).connect(buses.chime);
-  src.start();
-  swirl = { filter, gain };
+  swirlVoice = rumbleVoice(ctx, buses.rolling, rumbleBuffer());
 });
 
-export function funnelEnter(marbleId) {
-  inFunnel.add(marbleId);
-  const ctx = context();
-  if (!ctx || !swirl) return;
-  const t = ctx.currentTime;
-  swirl.gain.gain.setTargetAtTime(0.35, t, 0.05);
-  swirl.filter.frequency.cancelScheduledValues(t);
-  swirl.filter.frequency.setValueAtTime(400, t);
-  swirl.filter.frequency.exponentialRampToValueAtTime(1400, t + 0.6);
-}
-
-export function funnelExit(marbleId) {
-  inFunnel.delete(marbleId);
-  const ctx = context();
-  if (!ctx || !swirl || inFunnel.size > 0) return;
-  swirl.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.12);
-}
-
-/** A removed marble can't leave the swirl running. */
-export function forgetMarble(marbleId) {
-  if (inFunnel.has(marbleId)) funnelExit(marbleId);
+export function funnel() {
+  const ctx = soundContext();
+  if (ctx && swirlVoice) swirl(swirlVoice, ctx.currentTime);
 }
 
 // ---- UI blips ----

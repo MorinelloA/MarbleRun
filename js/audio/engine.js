@@ -4,6 +4,7 @@
 // simultaneous marbles can never clip.
 
 import { getPref, setPref } from '../prefs.js';
+import { rumbleLoop, toBuffer } from './recipes.js';
 
 let ctx = null;
 let master = null;
@@ -47,6 +48,34 @@ function applyLevel() {
   }
 }
 
+/**
+ * The mix: buses -> master -> compressor -> out. The game builds it once;
+ * tools/sound-sheet.html builds its own, to hear and measure sounds exactly
+ * as the game plays them.
+ * @param {BaseAudioContext} c
+ */
+export function mixer(c, out = c.destination) {
+  const comp = c.createDynamicsCompressor();
+  comp.threshold.value = -18;
+  comp.knee.value = 12;
+  comp.ratio.value = 8;
+  comp.attack.value = 0.003;
+  comp.release.value = 0.15;
+  comp.connect(out);
+
+  const main = c.createGain();
+  main.connect(comp);
+
+  const mix = { rolling: null, impact: null, chime: null, ui: null };
+  for (const [name, gain] of Object.entries({ rolling: 0.7, impact: 0.9, chime: 0.8, ui: 0.5 })) {
+    const bus = c.createGain();
+    bus.gain.value = gain;
+    bus.connect(main);
+    mix[name] = bus;
+  }
+  return { master: main, buses: mix };
+}
+
 function create() {
   const AC = window.AudioContext || /** @type {any} */ (window).webkitAudioContext;
   if (!AC) return false;
@@ -57,24 +86,10 @@ function create() {
   } catch { /* not supported */ }
   ctx = new AC();
 
-  const comp = ctx.createDynamicsCompressor();
-  comp.threshold.value = -18;
-  comp.knee.value = 12;
-  comp.ratio.value = 8;
-  comp.attack.value = 0.003;
-  comp.release.value = 0.15;
-  comp.connect(ctx.destination);
-
-  master = ctx.createGain();
+  const mix = mixer(ctx);
+  master = mix.master;
   master.gain.value = 0;
-  master.connect(comp);
-
-  for (const [name, gain] of [['rolling', 0.7], ['impact', 0.9], ['chime', 0.8], ['ui', 0.5]]) {
-    const bus = ctx.createGain();
-    bus.gain.value = gain;
-    bus.connect(master);
-    buses[name] = bus;
-  }
+  Object.assign(buses, mix.buses);
 
   for (const fn of readyCallbacks) fn(ctx);
   readyCallbacks.length = 0;
@@ -114,20 +129,9 @@ export function setDuck(reason, on) {
   applyLevel();
 }
 
-/** Shared noise buffer (2s, softened white noise) used by rolling + impacts. */
-let noiseBuffer = null;
-export function getNoiseBuffer() {
-  if (!noiseBuffer) {
-    const len = ctx.sampleRate * 2;
-    noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
-    const d = noiseBuffer.getChannelData(0);
-    let last = 0;
-    for (let i = 0; i < len; i++) {
-      // one-pole lowpassed white noise ≈ brown-ish rumble source
-      const white = Math.random() * 2 - 1;
-      last = last * 0.94 + white * 0.06;
-      d[i] = last * 6; // make up for lowpass level loss
-    }
-  }
-  return noiseBuffer;
+/** The rumble loop the rolling voices and the funnel's swirl share. */
+let rumble = null;
+export function rumbleBuffer() {
+  rumble ||= toBuffer(ctx, rumbleLoop(ctx.sampleRate));
+  return rumble;
 }

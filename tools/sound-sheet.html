@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sound sheet</title>
+<style>
+  body { margin: 0; padding: 20px 24px 40px; background: #1a1a1f; color: #f3f1ec; font: 14px/1.45 system-ui, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  h2 { font-size: 12px; margin: 24px 0 8px; color: #a9a8a3; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+  p { margin: 0 0 8px; color: #a9a8a3; max-width: 72ch; }
+  button { font: inherit; color: #f3f1ec; background: none; border: 1px solid #686767; border-radius: 999px; padding: 6px 14px; margin: 0 6px 8px 0; cursor: pointer; }
+  button:hover, button:focus-visible { border-color: #f3f1ec; outline: none; }
+  table { border-collapse: collapse; }
+  th, td { text-align: left; padding: 3px 18px 3px 0; font-variant-numeric: tabular-nums; vertical-align: top; }
+  th { color: #a9a8a3; font-weight: 500; }
+  .pass { color: #80b918; }
+  .fail { color: #e63946; }
+</style>
+</head>
+<body>
+<!-- Dev page: every sound effect played through the game's own mix, with
+     measurements against the levels they should keep. Serve the repo root
+     with tools/devserver.py. -->
+<h1>Sound sheet</h1>
+<p>Every sound effect, played through the game's own mix (buses, compressor). The note is a bar struck at speed 3.5, the middle of Melody Lane; the effects are measured against it.</p>
+
+<h2>Knocks</h2>
+<div id="knocks"></div>
+<h2>Rolling</h2>
+<div id="rolling"></div>
+<h2>Funnel and balance</h2>
+<div id="other"></div>
+<h2>Measured</h2>
+<table id="measured"><tr><td>Measuring…</td></tr></table>
+
+<script type="module" src="sound-sheet.js"></script>
+</body>
+</html>

@@ -20,6 +20,7 @@ Install and offline play (step 9) need the game served over HTTPS, so do that st
 2. **The title.** The start screen's MARBLE RUN BUILDER is in Mona Sans, black and condensed (not a plain system font). Shapes rest on its letters, and you can grab and throw them.
 3. **Sound.**
    - Tap Drop marble: you hear it, and the bells and bars ring as marbles pass.
+   - Open Melody Lane: the bars' scale leads. A rolling marble is a soft, low rumble (no hiss) that you can still just hear on the iPad's speakers, and it goes quiet on the bars. A landing is a soft wooden tok.
    - With the iPad set to silent (side switch, or the bell in Control Center), sound still plays on iPadOS 16.4 and later. On iPadOS 15, silent mutes it; that is expected.
    - Interrupt it: pull down Control Center and dismiss it, swipe to another app and back, or take a call. Sound comes back without reloading.
 4. **Dropping into the bottom row.** Drag a Track out of the tray and let go with your finger still over the top of the tray. The piece lands in the bottom row of the board.

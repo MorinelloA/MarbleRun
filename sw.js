@@ -3,7 +3,7 @@
 // any change installs fresh copies all at once, and the old cache goes
 // once the new one takes over. Pages are served from the cache first.
 
-const VERSION = 'mr-53bae169a198';
+const VERSION = 'mr-e2990ac3098e';
 const ASSETS = [
   './',
   'index.html',
@@ -23,6 +23,7 @@ const ASSETS = [
   'js/audio/chimes.js',
   'js/audio/engine.js',
   'js/audio/impacts.js',
+  'js/audio/recipes.js',
   'js/audio/rolling.js',
   'js/behaviors.js',
   'js/board.js',

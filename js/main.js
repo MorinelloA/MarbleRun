@@ -34,23 +34,20 @@ const params = new URLSearchParams(location.search);
 const TEST = params.has('test');
 
 // ---------- sound and reactions ----------
-world.on('impact', (speed, marbleOnMarble, marble) => {
-  impacts.trigger(speed, marbleOnMarble, marble);
+world.on('impact', (into, other, marble) => {
+  impacts.trigger(into, other, marble);
 });
 world.on('chime', (note, speed, piece) => {
   chimes.pieceSound(note, speed, piece);
   if (piece) fx.strike(piece, speed, world.simTime());
 });
-world.on('sensorEnter', (name, sensor, marble) => {
-  if (name === 'funnel') chimes.funnelEnter(marble.id);
+world.on('sensorEnter', (name, sensor) => {
+  if (name === 'funnel') chimes.funnel();
   else if (name === 'basket') chimes.plink();
   // a catch or a funnel entry is a strike; a lift's field or a cannon's
   // breech isn't (a cannon reacts when it fires, via its 'chime')
   const piece = sensor.plugin?.piece;
   if (piece && sensor.plugin.behavior?.type === 'sensor') fx.strike(piece, 1, world.simTime());
-});
-world.on('sensorExit', (name, sensor, marble) => {
-  if (name === 'funnel') chimes.funnelExit(marble.id);
 });
 world.on('pass', (piece) => {
   fx.strike(piece, 1, world.simTime());
@@ -67,7 +64,6 @@ world.on('goal', (piece) => {
 world.on('marbleRemoved', (marble, fade) => {
   rolling.releaseMarble(marble.id);
   impacts.forget(marble.id);
-  chimes.forgetMarble(marble.id);
   if (fade) fx.fadeMarble(marble);
 });
 // iOS starts audio only inside a gesture; a touch's pointerdown may not
@@ -146,7 +142,7 @@ function frame(now) {
     }
     if (steps === MAX_SUBSTEPS) acc = 0; // don't spiral after a long stall
 
-    rolling.update(world.marbles, world.isRolling);
+    rolling.update(world.marbles, world.rollingOn);
   }
   const t1 = performance.now();
 
