@@ -7,8 +7,6 @@ import { GRID, GRID_X, GRID_Y } from '../config.js';
 
 const { Bodies, Body, Constraint } = window.Matter;
 
-let nextPieceId = 1;
-
 export class Piece {
   /**
    * @param {object} entry catalog entry
@@ -17,7 +15,6 @@ export class Piece {
    * @param {number} flip 0|1 mirrored horizontally
    */
   constructor(entry, col, row, rot = 0, flip = 0) {
-    this.id = nextPieceId++;
     this.entry = entry;
     this.col = col;
     this.row = row;
@@ -28,7 +25,6 @@ export class Piece {
     this.bodies = [];
     this.constraint = null;
     this.dynamicBody = null;
-    this.lastChime = 0; // per-piece sound cooldown
 
     const [cw, ch] = entry.cells;
     // footprint in cells after rotation
@@ -100,9 +96,10 @@ export class Piece {
           isSensor: !!p.opts.sensor,
           friction: p.opts.friction ?? 0.03,
           restitution: p.opts.restitution ?? 0.1,
-          label: p.opts.label || 'track',
+          label: p.behavior ? p.behavior.type : 'track',
         });
         b.plugin.piece = this;
+        b.plugin.behavior = p.behavior;
         return b;
       });
     }
@@ -115,7 +112,9 @@ export class Piece {
 }
 
 /** Rotate/flip the entry's local part descriptors. Flip first, then
- *  quarter-turn clockwise `rot` times about the evolving footprint. */
+ *  quarter-turn clockwise `rot` times about the evolving footprint. A
+ *  part's behavior comes along with its direction vectors turned the same
+ *  way (on the part, not in opts, which arcChain shares between parts). */
 export function transformParts(entry, rot, flip) {
   const defs = entry.build(null).map(p => ({ ...p, opts: p.opts || {} }));
   let w = entry.cells[0] * GRID;
@@ -135,7 +134,24 @@ export function transformParts(entry, rot, flip) {
     }
     [w, h] = [h, w];
   }
+  for (const p of defs) p.behavior = orientBehavior(p.opts.behavior, rot, flip);
   return defs;
+}
+
+/** A direction in piece-local space, mirrored then turned like the part. */
+export function orientVector(v, rot, flip) {
+  let x = flip ? -v[0] : v[0];
+  let y = v[1];
+  for (let i = 0; i < rot; i++) [x, y] = [-y, x];
+  return { x, y };
+}
+
+function orientBehavior(behavior, rot, flip) {
+  if (!behavior) return null;
+  const out = { ...behavior };
+  if (behavior.dir) out.dir = orientVector(behavior.dir, rot, flip);
+  if (behavior.vel) out.vel = orientVector(behavior.vel, rot, flip);
+  return out;
 }
 
 /** Same transform for a single local point (used for dynamic pivots). */

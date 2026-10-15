@@ -15,9 +15,12 @@ export const GRID_Y = BOARD_H - ROWS * GRID;                   // 58
 
 export const MARBLE_R = 11;
 export const MAX_MARBLES = 20;
-export const SPEED_CLAMP = 18;          // px per physics step
+// Matter measures velocity in px per 16.7 ms (its base frame), not per
+// physics step: 18 is 9 px per 8.3 ms step, under a track's thickness.
+export const SPEED_CLAMP = 18;
 export const PHYS_DT = 1000 / 120;      // fixed physics sub-step, ms
 export const MAX_SUBSTEPS = 4;
+export const IMPACT_MIN_SPEED = 2.2;    // relative speed below which a hit is silent
 
 export const MARBLE_COLORS = [
   '#e63946', '#f4a300', '#2a9d8f', '#4361ee',

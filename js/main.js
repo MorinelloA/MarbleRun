@@ -43,12 +43,12 @@ world.on('impact', (speed, marbleOnMarble, marble) => {
   impacts.trigger(speed, marbleOnMarble, marble);
 });
 world.on('chime', (note, speed, piece) => chimes.pieceSound(note, speed, piece));
-world.on('sensorEnter', (label, sensor, marble) => {
-  if (label === 'funnel') chimes.funnelEnter(marble.id);
-  else if (label === 'basket') chimes.plink();
+world.on('sensorEnter', (name, sensor, marble) => {
+  if (name === 'funnel') chimes.funnelEnter(marble.id);
+  else if (name === 'basket') chimes.plink();
 });
-world.on('sensorExit', (label, sensor, marble) => {
-  if (label === 'funnel') chimes.funnelExit(marble.id);
+world.on('sensorExit', (name, sensor, marble) => {
+  if (name === 'funnel') chimes.funnelExit(marble.id);
 });
 world.on('marbleRemoved', (marble) => {
   rolling.releaseMarble(marble.id);

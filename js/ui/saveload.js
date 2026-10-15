@@ -10,6 +10,7 @@ import { board } from '../board.js';
 import { setPaused } from '../pause.js';
 import { renderThumb } from './thumbs.js';
 import { toast } from './toast.js';
+import { armable } from './confirm.js';
 
 const dialog = document.getElementById('save-dialog');
 const grid = document.getElementById('slot-grid');
@@ -83,19 +84,11 @@ function rebuild() {
     del.setAttribute('aria-label', `Delete ${doc.name}`);
     card.appendChild(del);
 
-    card.addEventListener('click', (e) => {
-      if (/** @type {HTMLElement} */ (e.target).closest('.slot-del')) return;
-      loadDoc(doc);
-    });
-    del.addEventListener('click', () => {
-      if (del.classList.contains('armed')) {
-        save.deleteSlot(id);
-        rebuild();
-      } else {
-        del.classList.add('armed');
-        setTimeout(() => del.classList.remove('armed'), 2000);
-      }
-    });
+    card.addEventListener('click', () => loadDoc(doc));
+    armable(del, () => {
+      save.deleteSlot(id);
+      rebuild();
+    }, { ms: 2000 });
     grid.appendChild(card);
   }
 

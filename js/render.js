@@ -31,7 +31,7 @@ let RS = 1; // backing-store resolution scale
 
 export function setupCanvas() {
   RS = Math.min(MAX_DPR, window.devicePixelRatio || 1);
-  for (const [c, cx] of [[canvas, ctx], [staticLayer, sctx]]) {
+  for (const c of [canvas, staticLayer]) {
     c.width = BOARD_W * RS;
     c.height = BOARD_H * RS;
   }

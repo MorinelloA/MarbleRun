@@ -58,9 +58,9 @@ const infos = [...board.board.pieces].map(p => {
 });
 const byPiece = new Map(infos.map(i => [i.piece, i]));
 const pieceOf = (body) => body?.plugin?.piece || body?.parent?.plugin?.piece || null;
-const loops = infos.filter(i => i.t === 'loop').map(i => i.piece);
+const loops = infos.filter(i => i.piece.entry.loop).map(i => i.piece);
 const baskets = infos.filter(i => i.t === 'basket').map(i => i.piece);
-const droppers = infos.filter(i => i.t === 'dropper').map(i => i.piece);
+const spawners = infos.filter(i => i.piece.entry.spawner).map(i => i.piece);
 
 // ---- the game's own events ----
 const sensorBalance = new Map(); // "marbleId:sensorId" -> enters - exits
@@ -143,7 +143,8 @@ function observe(s) {
     }
 
     for (const lp of loops) {
-      const dx = x - (lp.x + 64), dy = y - (lp.y + 68), d = Math.hypot(dx, dy);
+      const [cx, cy] = lp.entry.loop.center;
+      const dx = x - (lp.x + cx), dy = y - (lp.y + cy), d = Math.hypot(dx, dy);
       let st = m.loopState.get(lp) || 0;
       if (d < 48 && dy > 20) st = 1;
       else if (st === 1 && d < 55 && dy < -20 && dx < -10) { m.laps++; st = 0; }
@@ -176,9 +177,11 @@ const hash = createHash('sha1');
 
 for (let s = 1; s <= steps; s++) {
   if (extraAt.has(s)) {
-    if (droppers.length) {
-      const d = droppers[dropIdx++ % droppers.length];
-      spawn(d.x + 32 + (rand() * 10 - 5), d.y + 30 - rand() * 8, s);
+    if (spawners.length) {
+      // the same jitter as the toolbar's marble button
+      const d = spawners[dropIdx++ % spawners.length];
+      const at = d.entry.spawner;
+      spawn(d.x + at.x + (rand() * 10 - 5), d.y + at.y - rand() * 8, s);
     } else {
       spawn(BOARD_W * 0.2 + rand() * BOARD_W * 0.6, 30, s);
     }

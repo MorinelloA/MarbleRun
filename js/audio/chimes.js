@@ -35,12 +35,16 @@ export function strike(freq, vol = 0.8, decay = 1.8) {
   carrier.onended = () => { liveChimes--; };
 }
 
+const lastChime = new WeakMap(); // piece -> performance.now() of its last sound
+
 /** Routed from world 'chime' events. note is 'bumper' | 'tramp' | '*' | Hz string. */
 export function pieceSound(note, speed, piece) {
   const now = performance.now();
   if (piece) {
-    if (now - piece.lastChime < 250) return;
-    piece.lastChime = now;
+    // one sound per piece per 250 ms, so a marble rattling on a bar
+    // doesn't machine-gun it
+    if (now - (lastChime.get(piece) ?? -Infinity) < 250) return;
+    lastChime.set(piece, now);
   }
   const vol = Math.min(0.35 + speed / 12, 1);
   if (note === 'bumper') return boing(vol);

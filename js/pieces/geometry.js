@@ -7,7 +7,8 @@
 //   { kind: 'rect',   x, y, w, h, a, opts }   x,y = center, a = angle rad
 //   { kind: 'circle', x, y, r,       opts }
 //
-// opts: { label, sensor, restitution, friction, color }
+// opts: { sensor, restitution, friction, color, a, behavior }
+//   behavior: what the part does to marbles (see behaviors.js)
 
 export function rect(x, y, w, h, opts = {}) {
   return { kind: 'rect', x, y, w, h, a: opts.a || 0, opts };

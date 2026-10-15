@@ -1,7 +1,7 @@
 // @ts-check
 // Grid model: which cells are occupied by which piece, placement rules,
-// serialization. Physics side effects (adding/removing bodies) are done
-// through the world module by whoever mutates the board.
+// serialization. place() builds a piece's bodies; adding them to (and
+// removing them from) the physics world is up to the caller (actions.js).
 
 import { GRID, COLS, ROWS, GRID_X, GRID_Y } from './config.js';
 import { Piece } from './pieces/piece.js';
@@ -29,13 +29,12 @@ export const board = {
     return col >= 0 && row >= 0 && col + fw <= COLS && row + fh <= ROWS;
   },
 
-  /** Can a piece with this rotated footprint go at (col,row)?
-   *  `ignore` lets a piece being moved not collide with itself. */
-  canPlace(piece, col, row, ignore = null) {
+  /** Can a piece with this (rotated) footprint go at (col,row)? A piece
+   *  being moved is off the board while dragged, so it never blocks itself. */
+  canPlace(piece, col, row) {
     if (!this.inBounds(col, row, piece.fw, piece.fh)) return false;
     for (const key of piece.footprintKeys(col, row)) {
-      const occ = this.cells.get(key);
-      if (occ && occ !== ignore) return false;
+      if (this.cells.has(key)) return false;
     }
     return true;
   },
@@ -44,11 +43,11 @@ export const board = {
     return this.cells.get(`${col},${row}`) || null;
   },
 
-  /** Place an already-constructed Piece. Returns its bodies to add to physics. */
+  /** Put an already-constructed Piece on the grid and build its bodies. */
   place(piece) {
     for (const key of piece.footprintKeys()) this.cells.set(key, piece);
     this.pieces.add(piece);
-    const bodies = piece.buildBodies();
+    piece.buildBodies();
     this.emit();
     return piece;
   },
