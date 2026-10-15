@@ -9,6 +9,7 @@ import * as world from './world.js';
 import { placePiece, removePiece, snapshot, commitEdit, undo } from './actions.js';
 import { ghostCell, isTrash } from './placement.js';
 import { Piece } from './pieces/piece.js';
+import * as fx from './fx.js';
 import * as chimes from './audio/chimes.js';
 import { unlock } from './audio/engine.js';
 import { toast } from './ui/toast.js';
@@ -127,6 +128,7 @@ function endDrag(e) {
       chimes.ui.delete(); // an existing piece dropped on the tray: thrown away
     } else if (g.snapped && g.valid && board.canPlace(g.piece, g.piece.col, g.piece.row)) {
       placePiece(g.piece);
+      fx.enter(g.piece, 'place', world.simTime());
       chimes.ui.place();
     } else if (g.origin) {
       // invalid drop of an existing piece — put it back where it was
@@ -158,6 +160,7 @@ function reshape(piece, rot, flip) {
   next.row = Math.min(next.row, Math.max(0, ROWS - next.fh));
   if (board.canPlace(next, next.col, next.row)) {
     placePiece(next);
+    fx.enter(next, flip !== piece.flip ? 'flip' : 'turn', world.simTime());
     chimes.ui.rotate();
     commitEdit(before);
   } else {

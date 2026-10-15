@@ -12,8 +12,9 @@ import { ART } from './pieces.js';
 import { knockColor } from './shapes.js';
 import * as theme from '../theme.js';
 
-/** Drawing state for a piece at rest: no time, the first marble next. */
-export const AT_REST = { t: 0, next: 0 };
+/** Drawing state for a piece at rest: no time, nothing moving, the first
+ *  marble next. */
+export const AT_REST = { t: 0, next: 0, reduced: true };
 
 /** Board drawing order: top row first, left to right. */
 export function byCell(a, b) { return a.row - b.row || a.col - b.col; }
@@ -94,20 +95,49 @@ export function drawPiece(g, piece, ox = piece.x, oy = piece.y, env = AT_REST) {
   }
 }
 
-/** A marble as the toy draws one: fill, knockout, glint. @param {CanvasRenderingContext2D} g */
-export function drawMarble(g, m) {
+/** A marble as the toy draws one: fill, knockout, glint (`scale` shrinks
+ *  it, as it vanishes). @param {CanvasRenderingContext2D} g */
+export function drawMarble(g, m, scale = 1) {
   const { x, y } = m.position;
+  const r = MARBLE_R * scale;
   g.beginPath();
-  g.arc(x, y, MARBLE_R, 0, Math.PI * 2);
+  g.arc(x, y, r, 0, Math.PI * 2);
   g.fillStyle = theme.marble(m.plugin.ci || 0);
   g.fill();
-  g.lineWidth = 3;
+  g.lineWidth = 3 * scale;
   g.strokeStyle = knockColor(g);
   g.stroke();
   g.beginPath();
-  g.arc(x - MARBLE_R * 0.35, y - MARBLE_R * 0.35, MARBLE_R * 0.28, 0, Math.PI * 2);
+  g.arc(x - r * 0.35, y - r * 0.35, r * 0.28, 0, Math.PI * 2);
   g.fillStyle = theme.current().shine;
   g.fill();
+}
+
+/**
+ * A piece easing into place, drawn whole: `kind` is how it arrived
+ * (place: grows in from 90%, turn: swings the last quarter turn, flip:
+ * turns over), `p` how far along (0..1).
+ * @param {CanvasRenderingContext2D} g
+ */
+export function drawEntering(g, piece, kind, p, env) {
+  const e = 1 - (1 - p) ** 3; // ease out
+  const cx = piece.x + (piece.fw * GRID) / 2;
+  const cy = piece.y + (piece.fh * GRID) / 2;
+  g.save();
+  g.translate(cx, cy);
+  if (kind === 'turn') {
+    g.rotate((-Math.PI / 2) * (1 - e));
+  } else if (kind === 'flip') {
+    g.scale(-1 + 2 * e, 1);
+  } else {
+    const s = 0.9 + 0.1 * e;
+    g.scale(s, s);
+    g.globalAlpha = 0.5 + 0.5 * e;
+  }
+  g.translate(-cx, -cy);
+  drawStatic(g, piece);
+  drawLive(g, piece, env);
+  g.restore();
 }
 
 /** The piece being dragged, and once it snaps, a dashed footprint: lime

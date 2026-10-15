@@ -62,3 +62,34 @@ export function marble(i) { return active.marbles[i % active.marbles.length]; }
 
 /** Fill colour for a catalog role. */
 export function role(name) { return active.role[name] || active.ink; }
+
+const rgbCache = new Map();
+function rgbOf(hex) {
+  let c = rgbCache.get(hex);
+  if (!c) {
+    const n = parseInt(hex.slice(1), 16);
+    c = [n >> 16, (n >> 8) & 255, n & 255];
+    rgbCache.set(hex, c);
+  }
+  return c;
+}
+
+/** Red, whatever its lightness: hue within 30° of pure red. */
+function isRed([r, g, b]) {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  if (max !== r || max - min < 60) return false;
+  const h = ((g - b) / (max - min)) * 60;
+  return h <= 30 && h >= -30;
+}
+
+/**
+ * A struck piece's fill, `k` of the way (0..1) to its flash colour. Reds
+ * flash to gold and everything else to ink, so a flash never passes
+ * through a lightened red (pink). Returns #rrggbb.
+ */
+export function flash(fill, k) {
+  const from = rgbOf(fill);
+  const to = rgbOf(isRed(from) ? active.role.track : active.ink);
+  const ch = (i) => Math.round(from[i] + (to[i] - from[i]) * k).toString(16).padStart(2, '0');
+  return `#${ch(0)}${ch(1)}${ch(2)}`;
+}

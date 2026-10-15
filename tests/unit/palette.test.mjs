@@ -116,6 +116,23 @@ test('everything drawn on the stage stands out from it (3:1)', () => {
   assert.deepEqual(weak, []);
 });
 
+test('a struck piece never flashes through pink', () => {
+  // reds flash to gold, everything else to ink: a red lightened toward ink
+  // would pass through pink on the way
+  const th = theme.current();
+  const fills = [...Object.values(th.role), ...Object.values(th.notes)];
+  const pink = [];
+  for (const fill of fills) {
+    for (let k = 0.05; k <= 1; k += 0.05) {
+      const c = theme.flash(fill, k);
+      if (isPink(hexToRgb(c))) pink.push(`${fill} at ${k.toFixed(2)}: ${c}`);
+    }
+  }
+  assert.deepEqual(pink, []);
+  assert.equal(theme.flash(th.role.bounce, 1).toLowerCase(), th.role.track.toLowerCase(), 'reds flash to gold');
+  assert.equal(theme.flash(th.role.basket, 1).toLowerCase(), th.ink.toLowerCase(), 'others flash to ink');
+});
+
 test('every catalog role has a colour', () => {
   const th = theme.current();
   for (const entry of catalog.CATALOG) {

@@ -9,15 +9,39 @@
 //            dynamic  every frame, turned with its physics body; base(),
 //                     if any, is a still part drawn into the cached layer
 //   draw(g, piece, env), overlay(g, piece, env), base(g, piece, env)
-//     env: { t: sim time in ms, next: colour index of the next marble }
+//     env: { t: sim time in ms, next: colour index of the next marble,
+//            reduced: prefers-reduced-motion }
 // Shapes come from the catalog's own parts, so the art can't drift from the
 // physics; tools/catalog-sheet.html draws both, one over the other.
+//
+// Motion is restrained: movers' chevrons drift the way they push, and a
+// struck piece reacts once (fx.js keeps the strikes) and settles within a
+// fraction of a second. With reduced motion, reactions are a flash only.
 
 import { CATALOG } from '../pieces/catalog.js';
 import * as theme from '../theme.js';
+import * as fx from '../fx.js';
 import {
   knock, knockColor, pill, pillOf, axisOf, tile, disc, softPolygon, band, mergedArcs, chevron,
 } from './shapes.js';
+
+/** ms since a piece was last struck (Infinity if never, or not placed). */
+function ageOf(piece, env) {
+  const h = piece && fx.lastHit(piece);
+  if (!h) return Infinity;
+  const age = env.t - h.t;
+  return age < 0 ? Infinity : age;
+}
+
+/** A fill flashing toward ink (gold, for reds), fading over `ms`. */
+function flashed(fill, age, ms) {
+  return age < ms ? theme.flash(fill, 1 - age / ms) : fill;
+}
+
+/** How far a mover's pattern has drifted: px along its push at `speed` px/s. */
+function drift(env, speed) {
+  return env.reduced ? 0 : (env.t * speed) / 1000;
+}
 
 /** Build once, on first use (Path2D needs a browser). */
 function lazy(build) {
@@ -67,6 +91,8 @@ function knockCircle(g, x, y, r, fill) {
 // ---- movers: die-cut chevrons along whatever pushes ----
 
 const CHEVRON_STEP = 20;
+const BELT_SPEED = 18;  // px/s the chevrons drift
+const RISE_SPEED = 22;  // px/s the lift's field chevrons rise
 
 function conveyorsOf(entry) {
   return solidParts(entry)
@@ -119,7 +145,7 @@ function escalator(entry) {
   return {
     mode: 'overlay',
     draw(g) { knockAll(g, paths(), theme.role(entry.role)); },
-    overlay(g) { drawChevrons(g, belts(), 0); },
+    overlay(g, piece, env) { drawChevrons(g, belts(), drift(env, BELT_SPEED)); },
   };
 }
 
@@ -133,7 +159,7 @@ function lift(entry) {
   return {
     mode: 'overlay',
     draw(g) { knockAll(g, paths(), theme.role(entry.role)); },
-    overlay(g) {
+    overlay(g, piece, env) {
       // the field that floats marbles up: chevrons rising in the shaft
       g.save();
       g.beginPath();
@@ -145,12 +171,13 @@ function lift(entry) {
       g.lineJoin = 'round';
       g.beginPath();
       const cx = SHAFT.x + SHAFT.w / 2;
-      for (let y = SHAFT.y + SHAFT.h + RISER_STEP; y > SHAFT.y - RISER_STEP; y -= RISER_STEP) {
+      const rise = drift(env, RISE_SPEED) % RISER_STEP;
+      for (let y = SHAFT.y + SHAFT.h + RISER_STEP - rise; y > SHAFT.y - RISER_STEP; y -= RISER_STEP) {
         chevron(g, cx, y, 0, -1, 6, 7);
       }
       g.stroke();
       g.restore();
-      drawChevrons(g, belts(), 0);
+      drawChevrons(g, belts(), drift(env, BELT_SPEED));
     },
   };
 }
@@ -174,8 +201,8 @@ function loop(entry) {
       knock(g, floor(), theme.role('mover')); // the floor is a conveyor
       knockAll(g, bands(), theme.role(entry.role));
     },
-    overlay(g) {
-      drawChevrons(g, belts(), 0);
+    overlay(g, piece, env) {
+      drawChevrons(g, belts(), drift(env, BELT_SPEED));
       knockAll(g, bands(), theme.role(entry.role)); // the loop stays in front of its floor
     },
   };
@@ -191,8 +218,11 @@ function dropper(entry) {
   return {
     mode: 'overlay',
     draw(g) { knockAll(g, paths(), theme.role(entry.role)); },
-    // where the next marble drops, in its colour
-    overlay(g, piece, env) { knockCircle(g, at.x, at.y, 7, theme.marble(env.next)); },
+    // where the next marble drops, in its colour, breathing gently
+    overlay(g, piece, env) {
+      const r = env.reduced ? 7 : 7 + 0.9 * Math.sin((env.t / 1400) * 2 * Math.PI);
+      knockCircle(g, at.x, at.y, r, theme.marble(env.next));
+    },
   };
 }
 
@@ -218,18 +248,35 @@ function bell(entry) {
     bellPath(body, dome.x, dome.y, dome.r);
     const knob = new Path2D();
     disc(knob, dome.x, dome.y - dome.r - 1, 3);
-    return { stand, body, knob };
+    return { stand, body, knob, pivot: [dome.x, dome.y - dome.r - 1] };
   });
   return {
     mode: 'live',
-    draw(g) {
+    // struck, it rocks on its knob (up to 8°, harder hits swing wider),
+    // dying away over about 700 ms
+    draw(g, piece, env) {
       const s = shapes(), th = theme.current();
       knock(g, s.stand, th.detail.post);
-      knock(g, s.body, theme.role(entry.role));
-      knock(g, s.knob, theme.role(entry.role));
+      const age = ageOf(piece, env);
+      let fill = theme.role(entry.role);
+      g.save();
+      if (env.reduced) {
+        fill = flashed(fill, age, 300);
+      } else if (age < 700) {
+        const amp = Math.min(8, 3 + 0.6 * fx.lastHit(piece).s) * (Math.PI / 180);
+        const a = amp * Math.exp(-age / 230) * Math.sin((age / 340) * 2 * Math.PI);
+        g.translate(s.pivot[0], s.pivot[1]);
+        g.rotate(a);
+        g.translate(-s.pivot[0], -s.pivot[1]);
+      }
+      knock(g, s.body, fill);
+      knock(g, s.knob, fill);
+      g.restore();
     },
   };
 }
+
+const BAR_MS = 180;
 
 function xylophone(entry) {
   const shapes = lazy(() => {
@@ -244,14 +291,21 @@ function xylophone(entry) {
   });
   return {
     mode: 'live',
-    draw(g) {
+    // struck, it flashes and dips 2 px
+    draw(g, piece, env) {
       const s = shapes();
-      knock(g, s.body, theme.current().notes[s.note] || theme.role(entry.role));
+      const age = ageOf(piece, env);
+      g.save();
+      if (!env.reduced && age < BAR_MS) g.translate(0, 2 * Math.sin((Math.PI * age) / BAR_MS));
+      knock(g, s.body, flashed(theme.current().notes[s.note] || theme.role(entry.role), age, BAR_MS));
       g.fillStyle = knockColor(g);
       g.fill(s.rivets);
+      g.restore();
     },
   };
 }
+
+const POP_MS = 120;
 
 function bumper(entry) {
   const shapes = lazy(() => {
@@ -260,14 +314,24 @@ function bumper(entry) {
     disc(body, c.x, c.y, c.r);
     const cap = new Path2D();
     disc(cap, c.x, c.y, c.r * 0.4);
-    return { body, cap };
+    return { body, cap, cx: c.x, cy: c.y };
   });
   return {
     mode: 'live',
-    draw(g) {
+    // struck, it flashes and pops 14% bigger for a moment
+    draw(g, piece, env) {
       const s = shapes();
-      knock(g, s.body, theme.role(entry.role));
+      const age = ageOf(piece, env);
+      g.save();
+      if (!env.reduced && age < POP_MS) {
+        const k = 1 + 0.14 * (1 - age / POP_MS) ** 2;
+        g.translate(s.cx, s.cy);
+        g.scale(k, k);
+        g.translate(-s.cx, -s.cy);
+      }
+      knock(g, s.body, flashed(theme.role(entry.role), age, POP_MS));
       knock(g, s.cap, theme.current().ink);
+      g.restore();
     },
   };
 }
@@ -282,9 +346,10 @@ function bouncer(entry) {
   });
   return {
     mode: 'live',
-    draw(g) {
+    // struck, it flashes
+    draw(g, piece, env) {
       const s = shapes();
-      knock(g, s.body, theme.role(entry.role));
+      knock(g, s.body, flashed(theme.role(entry.role), ageOf(piece, env), POP_MS));
       g.strokeStyle = theme.current().ink;
       g.lineWidth = 2;
       g.lineCap = 'round';
@@ -295,6 +360,8 @@ function bouncer(entry) {
     },
   };
 }
+
+const RECOIL_MS = 160;
 
 function cannon(entry) {
   const shapes = lazy(() => {
@@ -314,14 +381,20 @@ function cannon(entry) {
     disc(body, core.x, core.y, core.r);
     const fuse = new Path2D();
     disc(fuse, core.x, core.y, 2.5);
-    return { arms, barrel, body, fuse };
+    return { arms, barrel, body, fuse, ux: vx / len, uy: vy / len };
   });
   return {
     mode: 'live',
-    draw(g) {
+    // firing, the barrel kicks back 3 px and flashes
+    draw(g, piece, env) {
       const s = shapes(), th = theme.current();
       const red = theme.role(entry.role);
-      knock(g, s.barrel, red);
+      const age = ageOf(piece, env);
+      const kick = !env.reduced && age < RECOIL_MS ? -3 * (1 - age / RECOIL_MS) ** 2 : 0;
+      g.save();
+      g.translate(s.ux * kick, s.uy * kick);
+      knock(g, s.barrel, flashed(red, age, RECOIL_MS));
+      g.restore();
       knockAll(g, s.arms, red);
       knock(g, s.body, th.detail.core);
       g.fillStyle = theme.role('track');
@@ -329,6 +402,8 @@ function cannon(entry) {
     },
   };
 }
+
+const CATCH_MS = 220;
 
 function basket(entry) {
   const shape = lazy(() => {
@@ -352,7 +427,16 @@ function basket(entry) {
   });
   return {
     mode: 'live',
-    draw(g) { knock(g, shape(), theme.role(entry.role)); },
+    // a catch makes it dip and come back up (a flash, with reduced motion)
+    draw(g, piece, env) {
+      const age = ageOf(piece, env);
+      let fill = theme.role(entry.role);
+      g.save();
+      if (env.reduced) fill = flashed(fill, age, CATCH_MS);
+      else if (age < CATCH_MS) g.translate(0, 2.5 * Math.sin((Math.PI * age) / CATCH_MS));
+      knock(g, shape(), fill);
+      g.restore();
+    },
   };
 }
 

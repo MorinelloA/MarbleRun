@@ -71,7 +71,7 @@ let colorIdx = 0;
 export function nextMarbleIndex() { return colorIdx; }
 
 export function spawnMarble(x, y) {
-  if (marbles.length >= MAX_MARBLES) removeMarble(marbles[0]);
+  if (marbles.length >= MAX_MARBLES) removeMarble(marbles[0], true);
   const b = Bodies.polygon(x, y, MARBLE_SIDES, MARBLE_R, {
     restitution: 0.35,
     friction: 0.02,
@@ -86,17 +86,20 @@ export function spawnMarble(x, y) {
   return b;
 }
 
-export function removeMarble(b) {
+/** @param {boolean} [fade] shrink it away on screen (the art's business) */
+export function removeMarble(b, fade = false) {
   const i = marbles.indexOf(b);
   if (i >= 0) marbles.splice(i, 1);
   contactCounts.delete(b.id);
   lastContact.delete(b.id);
   World.remove(engine.world, b);
-  emit('marbleRemoved', b);
+  emit('marbleRemoved', b, fade);
 }
 
-export function resetMarbles() {
-  for (const b of [...marbles]) removeMarble(b);
+/** Remove every marble; `fade` when the player cleared them (not when a
+ *  whole new board is loading). */
+export function resetMarbles({ fade = false } = {}) {
+  for (const b of [...marbles]) removeMarble(b, fade);
 }
 
 /** Simulated time in ms (advances only while physics steps). */

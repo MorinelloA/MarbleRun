@@ -3,13 +3,15 @@
 // piece that never changes on its own; it is repainted only after it has
 // been marked dirty (a board edit, a resize). Each frame copies it to the
 // visible canvas and draws on top, in order: overlays, live pieces, moving
-// pieces, marbles, the drag ghost and the debug HUD. Pieces are always
-// drawn in (row, col) order.
+// pieces, pieces easing into place, marbles (and ones shrinking away), the
+// drag ghost and the debug HUD. Pieces are always drawn in (row, col)
+// order. A piece easing in stays out of the cached layer until it settles.
 
 import { BOARD_W, BOARD_H } from './config.js';
 import { board } from './board.js';
 import { marbles, nextMarbleIndex } from './world.js';
 import { view } from './viewport.js';
+import * as fx from './fx.js';
 import { ART, MODES } from './art/pieces.js';
 import * as draw from './art/draw.js';
 
@@ -54,7 +56,7 @@ export function invalidateStatic() {
 
 function paintStatic() {
   for (const m of MODES) lists[m].length = 0;
-  const sorted = [...board.pieces].sort(draw.byCell);
+  const sorted = [...board.pieces].filter(p => !fx.entering.has(p)).sort(draw.byCell);
   for (const piece of sorted) lists[ART[piece.entry.id].mode].push(piece);
 
   sctx.setTransform(staticLayer.width / BOARD_W, 0, 0, staticLayer.height / BOARD_H, 0, 0);
@@ -64,7 +66,7 @@ function paintStatic() {
   stats.staticRebuilds++;
 }
 
-const env = { t: 0, next: 0 };
+const env = { t: 0, next: 0, reduced: false };
 
 /**
  * @param {null | {piece: any, x: number, y: number, snapped: boolean, valid: boolean}} ghost
@@ -80,6 +82,7 @@ export function frame(ghost, hud, t = 0) {
     t0 = t1;
   };
 
+  if (fx.settle(t, board.pieces)) invalidateStatic();
   if (staticDirty) paintStatic();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.drawImage(staticLayer, 0, 0);
@@ -88,13 +91,22 @@ export function frame(ghost, hud, t = 0) {
   ctx.setTransform(canvas.width / BOARD_W, 0, 0, canvas.height / BOARD_H, 0, 0);
   env.t = t;
   env.next = nextMarbleIndex();
+  env.reduced = fx.reduced();
   for (const piece of lists.overlay) draw.drawLive(ctx, piece, env);
   lap('overlay');
   for (const piece of lists.live) draw.drawLive(ctx, piece, env);
   lap('live');
   for (const piece of lists.dynamic) draw.drawLive(ctx, piece, env);
+  for (const [piece, e] of fx.entering) {
+    draw.drawEntering(ctx, piece, e.kind, Math.min(1, Math.max(0, (t - e.t) / fx.ENTER_MS)), env);
+  }
   lap('dynamic');
   for (const m of marbles) draw.drawMarble(ctx, m);
+  fx.dropFaded(t);
+  for (const m of fx.fading) {
+    const p = Math.min(1, Math.max(0, (t - m.t) / fx.FADE_MS));
+    draw.drawMarble(ctx, m, 1 - p * p);
+  }
   lap('marbles');
   if (ghost) draw.drawGhost(ctx, ghost);
   lap('ghost');

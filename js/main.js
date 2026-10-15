@@ -40,16 +40,19 @@ world.on('chime', (note, speed, piece) => {
 world.on('sensorEnter', (name, sensor, marble) => {
   if (name === 'funnel') chimes.funnelEnter(marble.id);
   else if (name === 'basket') chimes.plink();
+  // a catch or a funnel entry is a strike; a lift's field or a cannon's
+  // breech isn't (a cannon reacts when it fires, via its 'chime')
   const piece = sensor.plugin?.piece;
-  if (piece) fx.strike(piece, 1, world.simTime());
+  if (piece && sensor.plugin.behavior?.type === 'sensor') fx.strike(piece, 1, world.simTime());
 });
 world.on('sensorExit', (name, sensor, marble) => {
   if (name === 'funnel') chimes.funnelExit(marble.id);
 });
-world.on('marbleRemoved', (marble) => {
+world.on('marbleRemoved', (marble, fade) => {
   rolling.releaseMarble(marble.id);
   impacts.forget(marble.id);
   chimes.forgetMarble(marble.id);
+  if (fade) fx.fadeMarble(marble, world.simTime());
 });
 // iOS starts audio only inside a gesture; a touch's pointerdown may not
 // count as one, so unlock on the release too

@@ -46,14 +46,14 @@ export function buildToolbar(openSaveDialog, openSplash) {
   });
 
   onTap('btn-reset', () => {
-    world.resetMarbles();
+    world.resetMarbles({ fade: true });
     chimes.ui.delete();
   });
 
   armable(document.getElementById('btn-clear'), () => {
     const before = snapshot();
     clearBoard();
-    world.resetMarbles();
+    world.resetMarbles({ fade: true });
     chimes.ui.delete();
     if (commitEdit(before)) toast('Board cleared', { action: { label: 'Undo', fn: undo } });
   }, {
