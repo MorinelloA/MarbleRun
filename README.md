@@ -67,7 +67,7 @@ npx -p typescript tsc -p jsconfig.json
 
    `node tools/stamp-sw.mjs --check` fails if you forgot, and the unit tests fail if a file the game loads is missing from the list.
 
-2. Copy the repository's files, except `tests/`, `tools/` and `.git`, to any static host. It works under a subpath, but link to it with a trailing slash (`/marblerun/`), because every path inside is relative.
+2. Copy only what the game loads: `index.html`, `sw.js`, `manifest.webmanifest`, `web.config`, and the `css/`, `js/`, `vendor/`, `fonts/` and `icons/` folders. On landonarcher.com it lives at `/marblerun/`. It works under any subpath, but link to it with a trailing slash (`/marblerun/`), because every path inside is relative. `web.config` is for IIS, which otherwise refuses `.webmanifest` and `.woff2` files; the service worker keeps both, and one missing file stops it installing.
 
 3. Serve it over HTTPS. iPadOS needs HTTPS to install it to the Home Screen and to run the service worker.
 
