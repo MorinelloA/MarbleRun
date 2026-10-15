@@ -3,7 +3,7 @@
 // any change installs fresh copies all at once, and the old cache goes
 // once the new one takes over. Pages are served from the cache first.
 
-const VERSION = 'mr-b2fa8594a68d';
+const VERSION = 'mr-18cf1485ff9b';
 const ASSETS = [
   './',
   'index.html',
