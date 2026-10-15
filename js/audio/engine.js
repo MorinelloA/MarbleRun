@@ -18,6 +18,11 @@ const readyCallbacks = [];
 
 export function context() { return ctx; }
 
+/** The context, when a one-shot sound should be made now; null while muted,
+ *  paused or covered by a menu. The context is suspended then, so a sound
+ *  made anyway would wait and burst out with the others on resume. */
+export function soundContext() { return silent() ? null : ctx; }
+
 /** Register work to run once the AudioContext exists (voice pool setup). */
 export function onReady(fn) {
   if (ctx) fn(ctx);

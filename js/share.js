@@ -58,10 +58,16 @@ export function linkFor(pieces) {
   return `${location.origin}${location.pathname}${location.search}#b=${encode(pieces)}`;
 }
 
-/** The board in the page's own address, if it carries one. */
+/** The board in the page's own address, if it carries one (null for a
+ *  link that's been mangled, even into bad escapes like a stray %). */
 export function fromLocation() {
   const m = /^#b=(.+)$/.exec(location.hash);
-  return m ? decode(decodeURIComponent(m[1])) : null;
+  if (!m) return null;
+  try {
+    return decode(decodeURIComponent(m[1]));
+  } catch {
+    return null;
+  }
 }
 
 /** Take a board out of the address, so a reload doesn't open it again. */

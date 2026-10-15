@@ -76,6 +76,13 @@ export function replaceBoard(pieces, { source = 'other' } = {}) {
     if (session.dirty) save.pushBackup(before);
     history.record(before);
   }
+  // Until the player edits this board, their last build lives only in the
+  // autosave, which the first edit of something else would overwrite: keep
+  // it among the backups (unless it's what's being opened).
+  if (!session.dirty && source !== 'autosave') {
+    const last = save.readAutosave();
+    if (last) save.pushBackup(last.pieces);
+  }
   loadPieces(pieces);
   session.dirty = false;
   session.source = source;

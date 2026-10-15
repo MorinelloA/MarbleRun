@@ -206,6 +206,15 @@ export function paintIcon(c, entry, flip, size, scale) {
   drawPiece(g, piece, 0, 0);
 }
 
+/** Let go of the pixels of every canvas under `root` now: iPad Safari holds
+ *  canvas memory until a garbage collection that can come too late. */
+export function releaseCanvases(root) {
+  for (const c of root.querySelectorAll('canvas')) {
+    c.width = 0;
+    c.height = 0;
+  }
+}
+
 /** Canvas pixels per CSS px for pictures outside the scaled game stage. */
 export function screenScale() {
   return Math.max(1, Math.min(RS_MAX, window.devicePixelRatio || 1));

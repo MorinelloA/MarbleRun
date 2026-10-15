@@ -13,7 +13,7 @@ import * as render from './render.js';
 import * as fx from './fx.js';
 import * as theme from './theme.js';
 import * as share from './share.js';
-import { toast } from './ui/toast.js';
+import { toast, setActionGuard } from './ui/toast.js';
 import { boardShown as coachBoardShown } from './ui/coach.js';
 import * as input from './input.js';
 import { board } from './board.js';
@@ -68,7 +68,7 @@ world.on('marbleRemoved', (marble, fade) => {
   rolling.releaseMarble(marble.id);
   impacts.forget(marble.id);
   chimes.forgetMarble(marble.id);
-  if (fade) fx.fadeMarble(marble, world.simTime());
+  if (fade) fx.fadeMarble(marble);
 });
 // iOS starts audio only inside a gesture; a touch's pointerdown may not
 // count as one, so unlock on the release too
@@ -78,6 +78,7 @@ for (const type of ['pointerdown', 'pointerup', 'touchend']) {
 
 // ---------- board and session wiring ----------
 board.onChange(() => render.invalidateStatic());
+setActionGuard(() => !input.isBusy()); // no Undo from a second finger mid-drag
 
 // save the build before the tab goes away (pagehide alone is unreliable on iOS)
 document.addEventListener('visibilitychange', () => {
@@ -206,7 +207,7 @@ function openSharedLink() {
   return true;
 }
 window.addEventListener('hashchange', () => {
-  if (openSharedLink()) splash.hide();
+  if (openSharedLink() && splash.isOpen()) splash.hide();
 });
 
 // offline play once it's served from a real host; never on this machine,

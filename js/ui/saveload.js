@@ -10,7 +10,7 @@ import { replaceBoard, undo } from '../actions.js';
 import { board } from '../board.js';
 import { setPaused } from '../pause.js';
 import * as chimes from '../audio/chimes.js';
-import { renderPreview } from '../art/draw.js';
+import { renderPreview, releaseCanvases } from '../art/draw.js';
 import { toast } from './toast.js';
 import { armable } from './confirm.js';
 import { icon } from './icons.js';
@@ -63,7 +63,9 @@ function actionButton(name, label) {
   return b;
 }
 
-/** Turn a run's name into a text field; Enter or leaving it saves. */
+/** Turn a run's name into a text field; Return or leaving it saves, Escape
+ *  cancels. The field sits outside the card's open button, so typing in it
+ *  can never open the run. */
 function startRename(id, nameEl) {
   const input = /** @type {HTMLInputElement} */ (el('input', 'slot-rename'));
   input.value = nameEl.textContent;
@@ -76,12 +78,15 @@ function startRename(id, nameEl) {
     const name = keep ? save.renameSlot(id, input.value) : null;
     if (name) toast(`Renamed “${name}”`);
     rebuild();
-    /** @type {HTMLElement} */ (grid.querySelector(`[data-slot="${id}"] .slot-open`))?.focus();
+    /** @type {HTMLElement} */ (grid.querySelector(`[data-slot="${id}"] .slot-act`))?.focus();
   };
+  input.addEventListener('click', (e) => e.stopPropagation());
   input.addEventListener('keydown', (e) => {
     e.stopPropagation();
-    if (e.key === 'Enter') finish(true);
-    else if (e.key === 'Escape') finish(false);
+    if (e.key === 'Enter' || e.key === 'Escape') {
+      e.preventDefault(); // no key press left over to land on whatever gets focus
+      finish(e.key === 'Enter');
+    }
   });
   input.addEventListener('blur', () => finish(true));
   nameEl.replaceWith(input);
@@ -97,9 +102,15 @@ function slotCard(id, doc) {
 
   const open = el('button', 'slot-open');
   open.setAttribute('aria-label', `Open ${doc.name}`);
-  const name = el('span', 'slot-name', doc.name);
-  open.append(picture(doc), name, el('span', 'slot-date', fmtDate(doc.ts)));
+  open.appendChild(picture(doc));
   open.addEventListener('click', () => loadDoc(doc));
+  // the name opens the run too, except while it's being renamed
+  const meta = el('div', 'slot-meta');
+  const name = el('span', 'slot-name', doc.name);
+  meta.append(name, el('span', 'slot-date', fmtDate(doc.ts)));
+  meta.addEventListener('click', () => {
+    if (!meta.querySelector('input')) loadDoc(doc);
+  });
 
   const actions = el('div', 'slot-actions');
   const rename = actionButton('rename', `Rename ${doc.name}`);
@@ -132,11 +143,12 @@ function slotCard(id, doc) {
   }, { ms: 2000, onArm: () => toast(`Tap again to delete “${doc.name}”`) });
   actions.append(rename, overwrite, copy, del);
 
-  card.append(open, actions);
+  card.append(open, meta, actions);
   return card;
 }
 
 function rebuild() {
+  releaseCanvases(grid);
   grid.textContent = '';
 
   // save the board as a new run

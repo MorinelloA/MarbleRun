@@ -126,6 +126,14 @@ function beginExistingDrag(piece, e) {
   updateGhost(e);
 }
 
+/** Return a moved piece to where it was picked up from, if that's still
+ *  free (if something has filled it meanwhile, the piece is let go). */
+function putBack(g) {
+  g.piece.col = g.origin.col;
+  g.piece.row = g.origin.row;
+  if (board.canPlace(g.piece, g.piece.col, g.piece.row)) placePiece(g.piece);
+}
+
 function endDrag(e) {
   updateGhost(e);
   trayEl.classList.remove('trash-mode');
@@ -137,14 +145,12 @@ function endDrag(e) {
       did('trash');
     } else if (g.snapped && g.valid && board.canPlace(g.piece, g.piece.col, g.piece.row)) {
       placePiece(g.piece);
-      fx.enter(g.piece, 'place', world.simTime());
+      fx.enter(g.piece, 'place');
       chimes.ui.place();
       if (!g.origin) did('place');
     } else if (g.origin) {
       // invalid drop of an existing piece — put it back where it was
-      g.piece.col = g.origin.col;
-      g.piece.row = g.origin.row;
-      placePiece(g.piece);
+      putBack(g);
       chimes.ui.deny();
     } else if (!g.snapped) {
       chimes.ui.delete(); // a new piece let go off the board goes back
@@ -170,7 +176,7 @@ function reshape(piece, rot, flip) {
   next.row = Math.min(next.row, Math.max(0, ROWS - next.fh));
   if (board.canPlace(next, next.col, next.row)) {
     placePiece(next);
-    fx.enter(next, flip !== piece.flip ? 'flip' : 'turn', world.simTime());
+    fx.enter(next, flip !== piece.flip ? 'flip' : 'turn');
     chimes.ui.rotate();
     commitEdit(before);
     did(flip !== piece.flip ? 'mirror' : 'turn');
@@ -341,11 +347,8 @@ window.addEventListener('pointercancel', (e) => {
   // the browser took the gesture (tray scroll, system gesture) — bail out
   // quietly: restore a moved piece, discard a new ghost
   trayEl.classList.remove('trash-mode');
-  if (ghost && ghost.origin) {
-    ghost.piece.col = ghost.origin.col;
-    ghost.piece.row = ghost.origin.row;
-    placePiece(ghost.piece);
-  }
+  if (ghost && ghost.origin) putBack(ghost);
+  if (editBefore) commitEdit(editBefore); // a no-op unless the piece couldn't go back
   ghost = null;
   editBefore = null;
   if (state === 'dragMarble') flingMarble();

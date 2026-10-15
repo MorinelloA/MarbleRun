@@ -12,7 +12,7 @@ import * as theme from '../theme.js';
 import { setPaused } from '../pause.js';
 import { unlock } from '../audio/engine.js';
 import * as chimes from '../audio/chimes.js';
-import { renderPreview } from '../art/draw.js';
+import { renderPreview, releaseCanvases } from '../art/draw.js';
 import { toast } from './toast.js';
 import { trapTab } from './focus.js';
 import { createSplashToy } from './splashToy.js';
@@ -82,6 +82,7 @@ function emptyBoardPreview() {
 }
 
 function rebuild() {
+  releaseCanvases(grid);
   grid.textContent = '';
 
   const auto = save.readAutosave();
@@ -111,13 +112,17 @@ export function show({ closable: canClose = false, opener = document.activeEleme
   closable = canClose;
   returnFocus = opener;
   rebuild();
-  helpBtn.setAttribute('aria-pressed', String(coach.isPending()));
+  helpBtn.setAttribute('aria-pressed', 'false');
   closeBtn.classList.toggle('hidden', !closable);
   overlay.classList.remove('hidden');
   overlay.scrollTop = 0;
   setPaused('menu', true);
   toy.start();
   /** @type {HTMLElement} */ (grid.firstElementChild)?.focus({ preventScroll: true });
+}
+
+export function isOpen() {
+  return !overlay.classList.contains('hidden');
 }
 
 export function hide() {
@@ -129,12 +134,13 @@ export function hide() {
   coach.boardShown();
 }
 
-// "How to play" switches the first-run tips on (or back off) for when the
-// board shows
+// "How to play" turns the tips on (from the start) for when the board shows.
+// It only ever turns them on, so a first-time player can't switch them off
+// by asking for help; "Skip tips" is the way to stop them.
 helpBtn.addEventListener('click', () => {
   unlock();
-  coach.setPending(!coach.isPending());
-  helpBtn.setAttribute('aria-pressed', String(coach.isPending()));
+  coach.setPending(true);
+  helpBtn.setAttribute('aria-pressed', 'true');
 });
 
 export const toyDebug = toy.debug;

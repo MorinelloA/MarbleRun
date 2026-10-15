@@ -4,14 +4,14 @@
 // placing / rotating / deleting pieces.
 
 import { CHIME_VOICES } from '../config.js';
-import { onReady, buses, context, getNoiseBuffer } from './engine.js';
+import { onReady, buses, context, soundContext, getNoiseBuffer } from './engine.js';
 
 const PENTATONIC = [523.25, 587.33, 659.25, 783.99, 880]; // C5 D5 E5 G5 A5
 let liveChimes = 0;
 
 /** FM bell strike. freq in Hz; vol 0..1. */
 export function strike(freq, vol = 0.8, decay = 1.8) {
-  const ctx = context();
+  const ctx = soundContext();
   if (!ctx || liveChimes >= CHIME_VOICES) return;
   liveChimes++;
   const t = ctx.currentTime;
@@ -76,7 +76,7 @@ export function goal() {
 }
 
 export function boing(vol = 0.7) {
-  const ctx = context();
+  const ctx = soundContext();
   if (!ctx) return;
   const t = ctx.currentTime;
   const osc = ctx.createOscillator();
@@ -91,7 +91,7 @@ export function boing(vol = 0.7) {
 }
 
 export function sweep(vol = 0.7) {
-  const ctx = context();
+  const ctx = soundContext();
   if (!ctx) return;
   const t = ctx.currentTime;
   const osc = ctx.createOscillator();
@@ -153,7 +153,7 @@ export function forgetMarble(marbleId) {
 
 // ---- UI blips ----
 function blip(freq, dur = 0.07, vol = 0.5, type = 'triangle') {
-  const ctx = context();
+  const ctx = soundContext();
   if (!ctx) return;
   const t = ctx.currentTime;
   const osc = ctx.createOscillator();

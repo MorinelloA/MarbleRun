@@ -4,7 +4,7 @@
 // marble pile-ups don't machine-gun.
 
 import { IMPACT_VOICES } from '../config.js';
-import { onReady, buses, context } from './engine.js';
+import { onReady, buses, soundContext } from './engine.js';
 
 /** @type {{filter:any, gain:any, busyUntil:number}[]} */
 const chains = [];
@@ -43,7 +43,7 @@ export function forget(marbleId) {
  * @param {any} marble the marble body (for per-marble cooldown)
  */
 export function trigger(speed, marbleOnMarble, marble) {
-  const ctx = context();
+  const ctx = soundContext();
   if (!ctx || !burstBuffer) return;
   const now = performance.now();
 

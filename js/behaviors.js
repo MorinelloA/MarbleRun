@@ -89,6 +89,8 @@ export function onPieceAdded(piece) {
 export function onPieceRemoved(piece) {
   if (piece.dynamicBody) tiltLimited.delete(piece.dynamicBody);
   flipflops.delete(piece);
+  // picked up with a marble on it: it mustn't flip the moment it's put down
+  flipWasBusy.delete(piece);
   for (const b of piece.bodies) {
     if (!oneways.delete(b)) continue;
     // marbles halfway through it are solid to other flaps again

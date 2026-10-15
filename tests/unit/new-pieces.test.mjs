@@ -82,6 +82,21 @@ test('a flip-flop sends marbles left and right in turn', () => {
   assert.equal(flips, 4);
 });
 
+test('a flip-flop picked up with a marble on it does not flip when put down', () => {
+  actions.loadPieces([{ t: 'flipflop', c: 5, r: 3 }]);
+  let flips = 0;
+  world.on('flip', () => { flips++; });
+  const [piece] = [...board.board.pieces];
+  world.spawnMarble(cellX(5) + 64, cellY(3) + 4); // in the flap's zone
+  run(0.05);
+  flips = 0;
+  actions.removePiece(piece);  // the player lifts it...
+  world.resetMarbles();
+  actions.placePiece(piece);   // ...and drops it, nothing on it now
+  run(0.2);
+  assert.equal(flips, 0);
+});
+
 test('a goal cup counts each marble that reaches it once', () => {
   actions.loadPieces([{ t: 'goal', c: 5, r: 7 }]);
   const [piece] = [...board.board.pieces];

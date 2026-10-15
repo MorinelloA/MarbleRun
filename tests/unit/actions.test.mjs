@@ -70,6 +70,28 @@ test('replacing an untouched preset makes no backup', () => {
   assert.equal(save.listBackups().length, 0);
 });
 
+test('a fresh start keeps the last build safe before anything else loads', () => {
+  // last visit: a build, autosaved; this visit starts with an empty board
+  store.clear();
+  actions.replaceBoard([], { source: 'empty' });
+  const build = [{ t: 'block', c: 4, r: 4, rot: 0, f: 0 }, { t: 'ramp', c: 5, r: 3, rot: 0, f: 0 }];
+  store.set('marblerun:autosave', JSON.stringify({ v: 2, name: 'autosave', ts: 1, pieces: build }));
+  store.delete('marblerun:backups');
+
+  // opening the build itself backs nothing up
+  actions.replaceBoard(build, { source: 'autosave' });
+  assert.equal(save.listBackups().length, 0);
+
+  // opening anything else keeps it: an edit there would overwrite the autosave
+  actions.replaceBoard([{ t: 'ramp', c: 0, r: 0, rot: 0, f: 0 }], { source: 'preset:a' });
+  assert.equal(board.signature(save.listBackups()[0].pieces), board.signature(build));
+  const before = actions.snapshot();
+  actions.placePiece(new Piece(catalog.BY_ID.peg, 9, 1, 0, 0));
+  actions.commitEdit(before);
+  save.flushAutosave();
+  assert.equal(board.signature(save.listBackups()[0].pieces), board.signature(build), 'still there after the edit');
+});
+
 test('only pieces with a mirrored twin can be mirrored', () => {
   assert.equal(new Piece(catalog.BY_ID.loop, 0, 0, 0, 1).flip, 0);
   assert.equal(new Piece(catalog.BY_ID.ramp, 0, 0, 0, 1).flip, 1);

@@ -336,12 +336,15 @@ export function createSplashToy(stage, canvas) {
       if (document.fonts?.load) document.fonts.load('900 64px "Mona Sans Title"').then(go, go);
       else go();
     },
-    /** The start screen is gone: stop drawing. */
+    /** The start screen is gone: stop drawing, and let go of the canvas's
+     *  pixels (start() sizes it again). */
     stop() {
       running = false;
       cancelAnimationFrame(raf);
       raf = 0;
       drop();
+      canvas.width = 0;
+      canvas.height = 0;
     },
     /** For checks: the engine and shapes, and a way to run it n steps. */
     debug: { engine, shapes, solids: () => solids, step(n = 600) { for (let i = 0; i < n; i++) Engine.update(engine, STEP); draw(); } },

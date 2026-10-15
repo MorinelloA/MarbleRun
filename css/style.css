@@ -552,6 +552,14 @@ svg.icon {
   padding: 8px 8px 10px;
   text-align: left;
 }
+.slot-open { padding-bottom: 0; }
+.slot-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px 6px;
+  cursor: pointer;
+}
 .slot-card canvas {
   display: block;
   width: 100%;

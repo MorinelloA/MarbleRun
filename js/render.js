@@ -82,7 +82,8 @@ export function frame(ghost, hud, t = 0) {
     t0 = t1;
   };
 
-  if (fx.settle(t, board.pieces)) invalidateStatic();
+  const clock = performance.now(); // pieces easing in and marbles fading out
+  if (fx.settle(clock, board.pieces)) invalidateStatic();
   if (staticDirty) paintStatic();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.drawImage(staticLayer, 0, 0);
@@ -98,13 +99,13 @@ export function frame(ghost, hud, t = 0) {
   lap('live');
   for (const piece of lists.dynamic) draw.drawLive(ctx, piece, env);
   for (const [piece, e] of fx.entering) {
-    draw.drawEntering(ctx, piece, e.kind, Math.min(1, Math.max(0, (t - e.t) / fx.ENTER_MS)), env);
+    draw.drawEntering(ctx, piece, e.kind, Math.min(1, Math.max(0, (clock - e.t) / fx.ENTER_MS)), env);
   }
   lap('dynamic');
   for (const m of marbles) draw.drawMarble(ctx, m);
-  fx.dropFaded(t);
+  fx.dropFaded(clock);
   for (const m of fx.fading) {
-    const p = Math.min(1, Math.max(0, (t - m.t) / fx.FADE_MS));
+    const p = Math.min(1, Math.max(0, (clock - m.t) / fx.FADE_MS));
     draw.drawMarble(ctx, m, 1 - p * p);
   }
   lap('marbles');
