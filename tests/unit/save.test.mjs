@@ -74,6 +74,33 @@ test('default names skip ones already taken', () => {
   assert.equal(save.nextDefaultName(), 'Marble Run 2');
 });
 
+test('saved runs can be renamed, copied and saved over, names kept unique', async () => {
+  store.clear();
+  const { board } = await import(rootUrl('js/board.js'));
+  const actions = await import(rootUrl('js/actions.js'));
+  actions.loadPieces([{ t: 'ramp', c: 0, r: 0 }]);
+  const a = save.saveSlot('Loop city');
+  const b = save.saveSlot('Loop city');
+  assert.ok(a && b && a !== b);
+  assert.deepEqual(save.listSlots().map(s => s.doc.name), ['Loop city 2', 'Loop city']);
+
+  assert.equal(save.renameSlot(a, '  Loop city 2 '), 'Loop city 3', 'a taken name is made unique');
+  assert.equal(save.renameSlot(a, ''), null, 'an empty name changes nothing');
+  assert.equal(save.renameSlot(a, 'Loop city 3'), null, 'the same name changes nothing');
+
+  const c = save.duplicateSlot(a);
+  const names = save.listSlots().map(s => s.doc.name);
+  assert.deepEqual(names, ['Loop city 2', 'Loop city 3', 'Loop city 4'], 'the copy follows the original');
+
+  actions.loadPieces([{ t: 'block', c: 5, r: 5 }, { t: 'peg', c: 6, r: 5 }]);
+  assert.equal(save.overwriteSlot(c), true);
+  const saved = save.listSlots().find(s => s.id === c).doc;
+  assert.equal(saved.name, 'Loop city 4', 'saving over keeps the name');
+  assert.equal(board.signature(saved.pieces), board.signature(board.serialize()));
+  assert.equal(save.overwriteSlot('missing'), false);
+  actions.loadPieces([]);
+});
+
 test('backups keep the newest five distinct boards', () => {
   store.clear();
   for (let i = 0; i < 7; i++) save.pushBackup([{ t: 'block', c: i, r: 0, rot: 0, f: 0 }]);

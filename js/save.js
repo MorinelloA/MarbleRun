@@ -160,9 +160,19 @@ export function listSlots() {
     .filter(Boolean);
 }
 
-export function saveSlot(name, thumb) {
-  const id = `s${Date.now().toString(36)}`;
-  if (!write(KEY.slot(id), makeDoc(name, thumb))) return null;
+let lastId = '';
+function newId() {
+  let id = `s${Date.now().toString(36)}`;
+  while (id === lastId || readIds().includes(id)) id += 'x';
+  lastId = id;
+  return id;
+}
+
+/** Save the current board as a new run, first in the list. Pictures are
+ *  drawn from the pieces when shown, so new saves store none. */
+export function saveSlot(name, thumb = null) {
+  const id = newId();
+  if (!write(KEY.slot(id), makeDoc(uniqueName(name), thumb))) return null;
   const ids = readIds();
   ids.unshift(id);
   write(KEY.slots, ids);
@@ -172,6 +182,46 @@ export function saveSlot(name, thumb) {
 export function deleteSlot(id) {
   remove(KEY.slot(id));
   write(KEY.slots, readIds().filter(x => x !== id));
+}
+
+/** Give a saved run a new name (made unique). Returns the name used, or
+ *  null if nothing changed. */
+export function renameSlot(id, name) {
+  const doc = parseDoc(read(KEY.slot(id)));
+  const wanted = typeof name === 'string' ? name.trim().slice(0, MAX_NAME) : '';
+  if (!doc || !wanted || wanted === doc.name) return null;
+  const finalName = uniqueName(wanted, id);
+  return write(KEY.slot(id), { ...doc, name: finalName }) ? finalName : null;
+}
+
+/** Save the current board over a saved run, keeping its name. */
+export function overwriteSlot(id) {
+  const doc = parseDoc(read(KEY.slot(id)));
+  if (!doc) return false;
+  return write(KEY.slot(id), makeDoc(doc.name, null));
+}
+
+/** Copy a saved run; the copy goes right after it. Returns the new id. */
+export function duplicateSlot(id) {
+  const doc = parseDoc(read(KEY.slot(id)));
+  if (!doc) return null;
+  const copyId = newId();
+  if (!write(KEY.slot(copyId), { ...doc, name: uniqueName(doc.name), ts: Date.now() })) return null;
+  const ids = readIds();
+  const at = ids.indexOf(id);
+  ids.splice(at < 0 ? 0 : at + 1, 0, copyId);
+  write(KEY.slots, ids);
+  return copyId;
+}
+
+/** `name` if no other saved run uses it, otherwise "name 2", "name 3"... */
+export function uniqueName(name, exceptId = null) {
+  const taken = new Set(listSlots().filter(s => s.id !== exceptId).map(s => s.doc.name));
+  if (!taken.has(name)) return name;
+  const stem = name.replace(/ \d+$/, '').slice(0, MAX_NAME - 4);
+  let n = 2;
+  while (taken.has(`${stem} ${n}`)) n++;
+  return `${stem} ${n}`;
 }
 
 /** "Marble Run N" with the first N not already taken. */

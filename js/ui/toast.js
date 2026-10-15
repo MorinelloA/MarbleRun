@@ -1,5 +1,6 @@
 // @ts-check
-// One-line messages over the board, with an optional action button (Undo).
+// One-line messages: a pill above the tray, with an optional action
+// button (Undo).
 
 const el = /** @type {HTMLElement} */ (document.getElementById('toast'));
 let timer = 0;
@@ -23,6 +24,7 @@ export function toast(msg, { ms = 2200, action = null } = {}) {
     });
     el.appendChild(btn);
   }
+  el.classList.toggle('with-action', !!action);
   el.classList.remove('hidden');
   clearTimeout(timer);
   timer = setTimeout(hideToast, action ? Math.max(ms, 5000) : ms);

@@ -11,16 +11,17 @@ import * as viewport from './viewport.js';
 import * as world from './world.js';
 import * as render from './render.js';
 import * as fx from './fx.js';
+import * as theme from './theme.js';
 import * as input from './input.js';
 import { board } from './board.js';
 import * as actions from './actions.js';
 import * as save from './save.js';
 import { buildPalette, refreshIcons } from './ui/palette.js';
-import { buildToolbar } from './ui/toolbar.js';
+import { buildToolbar, syncMarbleCount, togglePause } from './ui/toolbar.js';
 import * as saveload from './ui/saveload.js';
 import * as splash from './ui/splash.js';
 import { initOrientation } from './orientation.js';
-import { isPaused, setPaused } from './pause.js';
+import { isPaused, pausedBy, setPaused } from './pause.js';
 import { unlock } from './audio/engine.js';
 import * as rolling from './audio/rolling.js';
 import * as impacts from './audio/impacts.js';
@@ -75,7 +76,9 @@ let hudOn = params.has('debug');
 let workMs = 8;  // physics + drawing per frame (smoothed)
 let physMs = 0;
 window.addEventListener('keydown', (e) => {
+  if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'd' || e.key === 'D') hudOn = !hudOn;
+  else if ((e.key === 'p' || e.key === 'P') && !pausedBy('menu')) togglePause();
 });
 
 const f1 = (v) => v.toFixed(1);
@@ -132,6 +135,7 @@ function frame(now) {
 
   // animations run on sim time, so they hold still while the game is paused
   render.frame(input.getGhost(), hud(), world.simTime() + acc);
+  syncMarbleCount();
 
   physMs = physMs * 0.9 + (t1 - t0) * 0.1;
   workMs = workMs * 0.95 + (performance.now() - t0) * 0.05;
@@ -146,12 +150,13 @@ function tick(n = 1) {
     world.step(PHYS_DT);
   }
   render.frame(input.getGhost(), hud(), world.simTime());
+  syncMarbleCount();
 }
 
 // debug/testing handle (the site's walkthrough recorder uses loadPieces)
 window.__mr = {
   world, board, save, actions, loadPieces: actions.loadPieces,
-  render, viewport, fx, input, tick,
+  render, viewport, fx, input, tick, splashToy: splash.toyDebug,
 };
 
 // ---------- boot ----------
@@ -161,8 +166,12 @@ viewport.onChange(() => {
   render.resize();
   refreshIcons();
 });
+theme.onChange(() => {
+  render.invalidateStatic();
+  refreshIcons();
+});
 buildPalette();
-buildToolbar(saveload.show, () => splash.show({ closable: true }));
+buildToolbar(saveload.show, (opener) => splash.show({ closable: true, opener }));
 initOrientation();
 
 if (TEST) {

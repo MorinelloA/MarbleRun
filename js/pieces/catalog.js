@@ -264,7 +264,21 @@ export const CATALOG = [
 
 export const BY_ID = Object.fromEntries(CATALOG.map(e => [e.id, e]));
 
+const trayItemsOf = (e) => e.hasMirror
+  ? [{ type: e.id, flip: 0 }, { type: e.id, flip: 1 }]
+  : [{ type: e.id, flip: 0 }];
+
 /** Tray listing: every catalog entry, plus mirrored twins for directional pieces. */
-export const TRAY_ITEMS = CATALOG.flatMap(e =>
-  e.hasMirror ? [{ type: e.id, flip: 0 }, { type: e.id, flip: 1 }] : [{ type: e.id, flip: 0 }]
-);
+export const TRAY_ITEMS = CATALOG.flatMap(trayItemsOf);
+
+/** The tray's kinds, in order, each with its pieces (a mirrored twin next
+ *  to its piece). `icon` names a symbol in index.html's sprite. A test
+ *  holds these to TRAY_ITEMS: every piece once, none left out. */
+export const TRAY_GROUPS = [
+  { id: 'track', name: 'Track', icon: 'track', ids: ['straight', 'ramp', 'steep', 'zigzag', 'stairs', 'tube'] },
+  { id: 'curves', name: 'Curves', icon: 'curves', ids: ['curve', 'uturn', 'loop', 'funnel'] },
+  { id: 'movers', name: 'Movers', icon: 'movers', ids: ['escalator', 'lift', 'spinner', 'windmill', 'seesaw'] },
+  { id: 'music', name: 'Music', icon: 'music', ids: ['bell', 'xylo1', 'xylo2', 'xylo3'] },
+  { id: 'gadgets', name: 'Gadgets', icon: 'gadgets', ids: ['dropper', 'cannon', 'bumper', 'tramp', 'basket'] },
+  { id: 'blocks', name: 'Blocks', icon: 'blocks', ids: ['block', 'half', 'peg'] },
+].map(({ ids, ...group }) => ({ ...group, items: ids.flatMap(id => trayItemsOf(BY_ID[id])) }));

@@ -1,3 +1,47 @@
+/* Marble Run Builder, dressed like the hero toy on tonyt908.com: a dark
+   stage, ink type in Mona Sans (wide and light labels, condensed and black
+   titles), hairline controls. Colours mirror js/theme.js; a test holds them
+   to it. Sizes mirror js/config.js, which owns them. */
+
+@font-face {
+  font-family: "Mona Sans";
+  src: url("../fonts/mona-sans-latin-wdth-normal.woff2") format("woff2");
+  font-weight: 200 900;
+  font-stretch: 75% 125%;
+  font-display: block;
+}
+/* The same file pinned to black and condensed, so canvas (which can't set
+   font-stretch before Safari 16.4) draws the title exactly as the page
+   shows it. */
+@font-face {
+  font-family: "Mona Sans Title";
+  src: url("../fonts/mona-sans-latin-wdth-normal.woff2") format("woff2");
+  font-weight: 900;
+  font-stretch: 75%;
+  font-display: block;
+}
+
+:root {
+  --stage: #0B0B0E;
+  --ink: #F3F1EC;
+  --muted: #A9A8A3;
+  --gold: #FFC845;
+  --red: #e63946;
+  --lime: #80b918;
+  --line: #686767;      /* hairlines: ink at 40% over the stage */
+  --line-soft: #2c2c31; /* quieter rings: ink at 12% */
+  --on-ink-muted: #5C5C58;
+  --game-w: 1133px;
+  --game-h: 744px;
+  --board-h: 634px;
+  --tray-h: 110px;
+  --bar-top: 6px;       /* the toolbar must end above row 0 (58px) */
+  --control: 44px;      /* the smallest thing to press */
+  --font: "Mona Sans", "Helvetica Neue", Arial, sans-serif;
+  --title-font: "Mona Sans Title", "Mona Sans", "Helvetica Neue", Arial, sans-serif;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+}
+
 /* ---- global: kill every Safari gesture ---- */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -5,75 +49,174 @@ html, body {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: #1a2740;
+  background: var(--stage);
+  color: var(--ink);
   touch-action: none;
   overscroll-behavior: none;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
-  font-family: "Comic Sans MS", "Chalkboard SE", "Marker Felt", sans-serif;
+  font: 400 16px/1.4 var(--font);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ---- fixed-size game container, scaled to fit via JS ---- */
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+svg.icon {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* A round, hairline control (the site's ghost button, as a circle). */
+.ghost {
+  width: var(--control);
+  height: var(--control);
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--stage);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: box-shadow .2s, background-color .2s, color .2s, transform .25s var(--ease-out);
+}
+.ghost:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.ghost:active { transform: scale(.93); }
+.ghost.armed { background: var(--red); box-shadow: none; }
+.ghost.inactive { opacity: .35; }
+.ghost.on { background: var(--ink); color: var(--stage); box-shadow: none; }
+
+/* Uppercase labels, wide and medium-heavy, as on the site. */
+.label, .pill-label, .group-pill span, #tray-trash span, .toast-action {
+  font-weight: 650;
+  font-stretch: 112%;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+}
+
+/* ---- the fixed-size game, scaled to fit by js/viewport.js ---- */
 #game {
   position: absolute;
-  width: 1133px;
-  height: 744px;
+  width: var(--game-w);
+  height: var(--game-h);
   transform-origin: top left;
-  background: #bfe7f7;
-  border-radius: 6px;
+  background: var(--stage);
   overflow: hidden;
 }
 
 #playfield {
   position: absolute;
-  top: 0; left: 0;
-  width: 1133px;
-  height: 634px;
-  touch-action: none;
+  top: 0;
+  left: 0;
+  width: var(--game-w);
+  height: var(--board-h);
   display: block;
+  touch-action: none;
 }
 
-/* ---- toolbar ---- */
+/* ---- toolbar: one row in the band above the grid, clear of the sky's left
+   end (a tap there drops a marble) ---- */
 #toolbar {
   position: absolute;
-  top: 10px; right: 10px;
+  top: var(--bar-top);
+  right: 12px;
+  height: var(--control);
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   z-index: 5;
 }
-#toolbar button {
-  width: 56px; height: 56px;
-  font-size: 28px;
-  border: none;
-  border-radius: 16px;
-  background: rgba(255,255,255,0.85);
-  box-shadow: 0 3px 0 rgba(0,0,0,0.15);
-  cursor: pointer;
-  touch-action: none;
-}
-#toolbar button:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.15); }
-#toolbar button.armed { background: #e63946; }
-#toolbar button.muted { opacity: 0.45; }
-#toolbar button.inactive { opacity: 0.4; }
-#btn-undo, #btn-redo { font-size: 30px; color: #2d4a75; }
+#toolbar .gap { width: 6px; }
 
-/* ---- piece tray ---- */
+#btn-marble {
+  height: var(--control);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 18px 0 12px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--stage);
+  font-size: 12px;
+  line-height: 1;
+  transition: transform .25s var(--ease-out);
+}
+#btn-marble:active { transform: scale(.96); }
+#btn-marble .count {
+  min-width: 2ch;
+  color: var(--on-ink-muted);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.marble-glyph { width: 22px; height: 22px; flex: none; }
+.marble-glyph circle { fill: var(--gold); }
+.marble-glyph .glint { fill: rgba(255, 255, 255, .55); }
+
+/* ---- piece tray: kinds on the left, the kind's pieces on the right ---- */
 #tray {
   position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 110px;
-  background: #2d4a75;
-  border-top: 4px solid #1d3355;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--tray-h);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--stage);
+  border-top: 1px solid var(--line-soft);
   z-index: 4;
 }
+
+#tray-groups {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(3, 80px);
+  grid-template-rows: repeat(2, 42px);
+  gap: 6px;
+  padding-right: 12px;
+  margin-right: 12px;
+  border-right: 1px solid var(--line-soft);
+}
+.group-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1;
+  transition: background-color .2s, color .2s, box-shadow .2s;
+}
+.group-pill svg.icon { width: 15px; height: 15px; }
+.group-pill:hover { color: var(--ink); }
+.group-pill[aria-pressed="true"] { background: var(--ink); color: var(--stage); box-shadow: none; }
+
 #tray-items {
+  flex: 1;
   height: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 14px;
+  gap: 6px;
   overflow-x: auto;
   overflow-y: hidden;
   touch-action: pan-x;
@@ -81,128 +224,180 @@ html, body {
   scrollbar-width: none;
 }
 #tray-items::-webkit-scrollbar { display: none; }
+
 .tray-item {
-  flex: 0 0 auto;
-  width: 88px; height: 88px;
-  border: none;
-  border-radius: 14px;
-  background: #0B0B0E; /* the stage: the icons' outlines are knocked out in it */
-  box-shadow: 0 3px 0 rgba(0,0,0,0.25);
+  position: relative;
+  flex: none;
+  width: 78px;
+  height: 92px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  /* pan-x lets a horizontal swipe scroll the tray (drag gets pointercancel),
-     while a vertical drag lifts the piece out of the tray */
+  gap: 5px;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+  /* pan-x lets a sideways swipe scroll the tray (the drag gets
+     pointercancel), while a drag upward lifts the piece out */
   touch-action: pan-x;
   cursor: grab;
+  transition: box-shadow .2s;
 }
+.tray-item:hover { box-shadow: inset 0 0 0 1px var(--line); }
+.tray-item.off { display: none; }
 .tray-item canvas { pointer-events: none; }
 .tray-item span {
-  font-size: 11px;
-  color: #A9A8A3;
-  pointer-events: none;
+  font-size: 9.5px;
+  font-weight: 600;
+  font-stretch: 100%;
+  line-height: 1;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
   white-space: nowrap;
+  pointer-events: none;
 }
+.tray-item svg.mirror {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+
 #tray-trash {
   position: absolute;
   inset: 0;
   display: none;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
-  color: #fff;
-  background: rgba(220, 70, 70, 0.9);
+  gap: 12px;
+  background: var(--red);
+  color: var(--ink);
+  font-size: 15px;
   pointer-events: none;
 }
 #tray.trash-mode #tray-trash { display: flex; }
-#tray.trash-mode #tray-items { visibility: hidden; }
+#tray.trash-mode > :not(#tray-trash) { visibility: hidden; }
 
-/* ---- splash screen ---- */
+/* ---- toast: a pill above the tray ---- */
+#toast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--tray-h) + 16px);
+  z-index: 50; /* above the save dialog */
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: var(--control);
+  padding: 0 20px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--stage);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  transition: opacity .25s, transform .3s var(--ease-out);
+}
+#toast.with-action { padding-right: 6px; }
+#toast.hidden { opacity: 0; transform: translate(-50%, 8px); pointer-events: none; }
+.toast-action {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--stage);
+  color: var(--ink);
+  font-size: 11px;
+}
+
+/* ---- start screen: the toy's stage, with plates for the tracks ---- */
 #splash {
   position: fixed;
   inset: 0;
   z-index: 45;
-  background: linear-gradient(160deg, #1c3f6e 0%, #2d6aa3 55%, #3e97c9 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: var(--stage);
   overflow-y: auto;
   touch-action: pan-y;
 }
 #splash.hidden { display: none; }
-#splash-close {
-  position: fixed;
-  top: 16px; right: 16px;
-  width: 52px; height: 52px;
-  border: none;
-  border-radius: 16px;
-  background: rgba(255,255,255,0.85);
-  font-size: 22px;
-  cursor: pointer;
-  z-index: 46;
+
+/* The toy's canvas covers the stage under the copy and plates; everything
+   on top lets presses through except real buttons, so a shape resting
+   anywhere can be grabbed. */
+.splash-stage {
+  position: relative;
+  isolation: isolate;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(40px, 11vh, 100px) clamp(16px, 4vw, 48px) clamp(20px, 4vh, 36px);
 }
+#splash-toy { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; }
+.splash-copy, #splash-grid, .splash-hint { position: relative; z-index: 1; pointer-events: none; }
+#splash button { pointer-events: auto; }
+
+#splash-close { position: fixed; top: 16px; right: 16px; z-index: 46; }
 #splash-close.hidden { display: none; }
-.splash-inner {
-  width: min(880px, 94vw);
-  padding: 24px 0;
-  text-align: center;
-}
+
 .splash-title {
-  color: #fff;
-  font-size: clamp(26px, 4.5vw, 44px);
-  text-shadow: 0 3px 0 rgba(0,0,0,0.25);
-  margin-bottom: 4px;
+  font: 900 clamp(40px, 7.6vw, 96px)/.86 var(--title-font);
+  letter-spacing: -.01em;
+  max-width: 100%;
 }
 .splash-sub {
-  color: #cfe6ff;
-  font-size: clamp(14px, 2vw, 19px);
-  margin-bottom: 18px;
-}
-#splash-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px;
-}
-.splash-card {
-  border: none;
-  background: #f6f9ff;
-  border-radius: 18px;
-  padding: 10px;
-  cursor: pointer;
-  box-shadow: 0 5px 0 rgba(0,0,0,0.28);
-  text-align: center;
-  transition: transform 0.08s;
-  font-family: inherit;
-}
-.splash-card:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,0.28); }
-.splash-card canvas, .splash-thumb-empty {
-  width: 100%;
-  aspect-ratio: 232 / 130;
-  border-radius: 10px;
-  background: #bfe7f7;
-  display: block;
-}
-.splash-thumb-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 52px;
-}
-.splash-card-title {
-  margin-top: 8px;
-  font-size: 17px;
-  color: #234;
-  font-weight: bold;
-}
-.splash-card-blurb {
-  font-size: 12px;
-  color: #789;
-  margin-top: 2px;
+  width: fit-content;
+  margin-top: clamp(10px, 2vh, 18px);
+  color: var(--muted);
+  font-size: clamp(15px, 1.6vw, 18px);
 }
 
-/* ---- portrait overlay ---- */
+#splash-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(10px, 1.6vw, 18px);
+  margin-top: clamp(20px, 4.5vh, 44px);
+}
+@media (max-width: 900px) { #splash-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { #splash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.splash-card {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  gap: 9px;
+  padding: 10px 10px 12px;
+  text-align: left;
+  background: var(--stage);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: box-shadow .2s, transform .3s var(--ease-out);
+}
+.splash-card:hover { box-shadow: inset 0 0 0 1.5px var(--ink); transform: translateY(-2px); }
+.splash-card:active { transform: translateY(0) scale(.985); }
+.splash-card canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 232 / 130;
+}
+.splash-card-title {
+  font: 850 clamp(15px, 1.75vw, 21px)/.95 var(--font);
+  font-stretch: 75%;
+  text-transform: uppercase;
+}
+.splash-card-blurb { color: var(--muted); font-size: 12.5px; line-height: 1.3; }
+
+.splash-hint {
+  margin-top: auto;
+  padding-top: 18px;
+  align-self: flex-end;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---- portrait: ask for landscape ---- */
 #rotate-overlay {
   position: fixed;
   inset: 0;
@@ -210,151 +405,152 @@ html, body {
   display: none;
   align-items: center;
   justify-content: center;
-  background: #1a2740;
-  color: #fff;
+  background: var(--stage);
   text-align: center;
 }
 @media (orientation: portrait) {
   #rotate-overlay { display: flex; }
   #game { visibility: hidden; }
 }
-.rotate-icon {
-  font-size: 90px;
-  animation: rot 1.6s ease-in-out infinite;
-  display: inline-block;
+.rotate-device { width: 120px; height: 120px; margin: 0 auto; }
+.rotate-device rect, .rotate-device path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 4;
+  stroke-linecap: round;
 }
-@keyframes rot {
-  0%, 20% { transform: rotate(0deg); }
+.rotate-device { animation: turn-sideways 2.4s var(--ease-out) infinite; }
+@keyframes turn-sideways {
+  0%, 25% { transform: rotate(0deg); }
   60%, 100% { transform: rotate(90deg); }
 }
-.rotate-card h1 { margin-top: 18px; font-size: 28px; }
+.rotate-card h1 {
+  margin-top: 18px;
+  font: 900 34px/.95 var(--title-font);
+  text-transform: uppercase;
+}
 
-/* ---- save dialog ---- */
+/* ---- save dialog: inside the game stage, so it scales with it and the
+   toast (above it) can answer what happens in it ---- */
 .dialog {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 40;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 20, 40, 0.55);
+  background: rgba(11, 11, 14, .78);
 }
 .dialog.hidden { display: none; }
 .dialog-card {
-  width: min(760px, 88vw);
-  max-height: 82vh;
-  background: #f6f9ff;
-  border-radius: 20px;
-  padding: 18px;
+  width: 860px;
+  max-height: 640px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  padding: 20px;
+  background: var(--stage);
+  box-shadow: inset 0 0 0 1px var(--line), 0 30px 80px -20px #000;
 }
 .dialog-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
-.dialog-head h2 { color: #2d4a75; font-size: 24px; }
-#dlg-close {
-  width: 44px; height: 44px;
-  font-size: 20px;
-  border: none;
-  border-radius: 12px;
-  background: #e2e8f4;
-  cursor: pointer;
-}
+.dialog-head h2 { font: 900 32px/.9 var(--title-font); text-transform: uppercase; }
+
 #slot-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px;
   overflow-y: auto;
   touch-action: pan-y;
-  padding-bottom: 6px;
+  padding: 2px 6px 6px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
+#slot-grid::-webkit-scrollbar { width: 8px; }
+#slot-grid::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+#slot-grid::-webkit-scrollbar-track { background: transparent; }
 .slot-card {
-  background: #fff;
-  border: 2px solid #d5deee;
-  border-radius: 14px;
-  padding: 8px;
-  cursor: pointer;
   position: relative;
-  text-align: center;
-}
-.slot-card img, .slot-card .thumb-empty {
-  width: 100%;
-  aspect-ratio: 240 / 158;
-  border-radius: 8px;
-  background: #cfe8f5;
-  object-fit: cover;
-  display: block;
-}
-.slot-card .thumb-empty {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 44px;
+  flex-direction: column;
+  box-shadow: inset 0 0 0 1px var(--line);
+  text-align: left;
 }
-.slot-card .slot-name {
-  margin-top: 6px;
-  font-size: 15px;
-  color: #334;
+.slot-open, .slot-card.new-slot, .slot-card.backup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 8px 10px;
+  text-align: left;
+}
+.slot-card canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 240 / 158;
+}
+.slot-thumb-new {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 240 / 158;
+  outline: 1.5px dashed var(--lime);
+  outline-offset: -10px;
+  color: var(--lime);
+}
+.slot-thumb-new svg.icon { width: 30px; height: 30px; }
+.slot-name {
+  font: 850 16px/1.05 var(--font);
+  font-stretch: 75%;
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.slot-card .slot-date { font-size: 11px; color: #99a; }
-.slot-card .slot-del {
-  position: absolute;
-  top: 4px; right: 4px;
-  width: 34px; height: 34px;
-  border: none;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.9);
-  font-size: 15px;
-  cursor: pointer;
+.slot-date { color: var(--muted); font-size: 11.5px; }
+.slot-rename {
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--stage);
+  font: 700 15px/1.1 var(--font);
+  -webkit-user-select: text;
+  user-select: text;
 }
-.slot-card .slot-del.armed { background: #e63946; color: #fff; }
-.slot-card.new-slot { border-style: dashed; color: #2d4a75; }
-
-/* ---- toast ---- */
-#toast {
-  position: fixed;
-  left: 50%;
-  bottom: 130px;
-  transform: translateX(-50%);
-  z-index: 60;
-  background: rgba(30, 40, 60, 0.92);
-  color: #fff;
-  padding: 12px 22px;
-  border-radius: 999px;
-  font-size: 16px;
-  transition: opacity 0.3s;
+.slot-actions {
+  display: flex;
+  gap: 4px;
+  padding: 0 6px 8px;
 }
-#toast.hidden { opacity: 0; pointer-events: none; }
-#toast { display: flex; align-items: center; gap: 14px; }
-.toast-action {
-  border: none;
-  border-radius: 999px;
-  padding: 6px 14px;
-  background: #fff;
-  color: #1a2740;
-  font: inherit;
-  font-size: 15px;
-  font-weight: bold;
-  cursor: pointer;
+.slot-act {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--muted);
+  transition: color .2s, background-color .2s;
 }
+.slot-act svg.icon { width: 18px; height: 18px; }
+.slot-act:hover { color: var(--ink); }
+.slot-act.armed { background: var(--red); color: var(--ink); }
 .slot-section {
   grid-column: 1 / -1;
-  margin-top: 8px;
-  font-size: 15px;
-  color: #2d4a75;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 11px;
 }
-.slot-card canvas.slot-thumb {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 240 / 158;
-  border-radius: 8px;
-  display: block;
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
 }

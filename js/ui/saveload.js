@@ -1,32 +1,27 @@
 // @ts-check
-// Save/load dialog: a "save current run" card, one card per saved slot, and
-// a row of earlier boards (builds that were replaced by something else).
-// Cards are built with DOM APIs; nothing stored is ever parsed as HTML.
+// The "My marble runs" dialog: save the board as a new run, open, rename,
+// save over, copy or delete a saved one, or go back to a recent autosave
+// (a build that was replaced by something else). Pictures are drawn from
+// each run's pieces. Cards are built with DOM APIs; nothing stored is ever
+// parsed as HTML.
 
-import { BOARD_W, BOARD_H } from '../config.js';
 import * as save from '../save.js';
 import { replaceBoard, undo } from '../actions.js';
 import { board } from '../board.js';
 import { setPaused } from '../pause.js';
+import * as chimes from '../audio/chimes.js';
 import { renderPreview } from '../art/draw.js';
 import { toast } from './toast.js';
 import { armable } from './confirm.js';
+import { icon } from './icons.js';
+import { trapTab } from './focus.js';
 
 const dialog = document.getElementById('save-dialog');
 const grid = document.getElementById('slot-grid');
-
-function makeThumb() {
-  const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('playfield'));
-  const t = document.createElement('canvas');
-  t.width = 240;
-  t.height = 158;
-  const g = t.getContext('2d');
-  const s = Math.min(240 / BOARD_W, 158 / BOARD_H);
-  g.fillStyle = '#bfe7f7';
-  g.fillRect(0, 0, 240, 158);
-  g.drawImage(canvas, (240 - BOARD_W * s) / 2, (158 - BOARD_H * s) / 2, BOARD_W * s, BOARD_H * s);
-  return t.toDataURL('image/jpeg', 0.6);
-}
+const closeBtn = document.getElementById('dlg-close');
+const THUMB_W = 240, THUMB_H = 158;
+/** @type {Element | null} */
+let returnFocus = null;
 
 function fmtDate(ts) {
   return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -39,18 +34,13 @@ function el(tag, className, text) {
   return e;
 }
 
-function thumbFor(doc) {
-  if (doc.thumb) {
-    const img = /** @type {HTMLImageElement} */ (el('img'));
-    img.alt = '';
-    img.src = doc.thumb;
-    return img;
+function picture(doc) {
+  try {
+    return renderPreview(doc.pieces, THUMB_W, THUMB_H);
+  } catch (err) {
+    console.warn('preview failed:', err);
+    return renderPreview([], THUMB_W, THUMB_H);
   }
-  const c = renderPreview(doc.pieces, 240, 158);
-  c.className = 'slot-thumb';
-  c.style.width = '';   // sized by the card's CSS instead
-  c.style.height = '';
-  return c;
 }
 
 function loadDoc(doc) {
@@ -60,62 +50,149 @@ function loadDoc(doc) {
   toast(`Opened “${doc.name}”`, replacing ? { action: { label: 'Undo', fn: undo } } : {});
 }
 
+function actionButton(name, label) {
+  const b = el('button', 'slot-act');
+  b.setAttribute('aria-label', label);
+  b.title = label;
+  b.appendChild(icon(name));
+  return b;
+}
+
+/** Turn a run's name into a text field; Enter or leaving it saves. */
+function startRename(id, nameEl) {
+  const input = /** @type {HTMLInputElement} */ (el('input', 'slot-rename'));
+  input.value = nameEl.textContent;
+  input.maxLength = 60;
+  input.setAttribute('aria-label', 'New name');
+  let done = false;
+  const finish = (keep) => {
+    if (done) return;
+    done = true;
+    const name = keep ? save.renameSlot(id, input.value) : null;
+    if (name) toast(`Renamed “${name}”`);
+    rebuild();
+    /** @type {HTMLElement} */ (grid.querySelector(`[data-slot="${id}"] .slot-open`))?.focus();
+  };
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') finish(true);
+    else if (e.key === 'Escape') finish(false);
+  });
+  input.addEventListener('blur', () => finish(true));
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
+function slotCard(id, doc) {
+  const card = el('div', 'slot-card');
+  card.dataset.slot = id;
+  card.setAttribute('role', 'group');
+  card.setAttribute('aria-label', doc.name);
+
+  const open = el('button', 'slot-open');
+  open.setAttribute('aria-label', `Open ${doc.name}`);
+  const name = el('span', 'slot-name', doc.name);
+  open.append(picture(doc), name, el('span', 'slot-date', fmtDate(doc.ts)));
+  open.addEventListener('click', () => loadDoc(doc));
+
+  const actions = el('div', 'slot-actions');
+  const rename = actionButton('rename', `Rename ${doc.name}`);
+  rename.addEventListener('click', () => startRename(id, name));
+  const overwrite = actionButton('save-here', `Save this board over ${doc.name}`);
+  armable(overwrite, () => {
+    if (board.pieces.size === 0) { toast('Build something first!'); return; }
+    if (save.overwriteSlot(id)) {
+      chimes.ui.place();
+      toast(`Saved over “${doc.name}”`);
+      rebuild();
+    } else {
+      toast('Storage full: delete an old save');
+    }
+  }, { onArm: () => toast(`Tap again to save over “${doc.name}”`) });
+  const copy = actionButton('copy', `Copy ${doc.name}`);
+  copy.addEventListener('click', () => {
+    if (save.duplicateSlot(id)) {
+      chimes.ui.place();
+      rebuild();
+    } else {
+      toast('Storage full: delete an old save');
+    }
+  });
+  const del = actionButton('trash', `Delete ${doc.name}`);
+  armable(del, () => {
+    save.deleteSlot(id);
+    chimes.ui.delete();
+    rebuild();
+  }, { ms: 2000, onArm: () => toast(`Tap again to delete “${doc.name}”`) });
+  actions.append(rename, overwrite, copy, del);
+
+  card.append(open, actions);
+  return card;
+}
+
 function rebuild() {
   grid.textContent = '';
 
-  // "save current" card
-  const newCard = el('div', 'slot-card new-slot');
-  newCard.appendChild(el('div', 'thumb-empty', '➕'));
-  newCard.appendChild(el('div', 'slot-name', 'Save this run'));
+  // save the board as a new run
+  const newCard = el('button', 'slot-card new-slot');
+  const plus = el('span', 'slot-thumb-new');
+  plus.appendChild(icon('plus'));
+  newCard.append(plus, el('span', 'slot-name', 'Save this run'), el('span', 'slot-date', 'as a new one'));
   newCard.addEventListener('click', () => {
     if (board.pieces.size === 0) { toast('Build something first!'); return; }
-    const id = save.saveSlot(save.nextDefaultName(), makeThumb());
-    if (id) { toast('Saved! ⭐'); rebuild(); }
-    else toast('Storage full — delete an old save');
+    const id = save.saveSlot(save.nextDefaultName());
+    if (id) {
+      chimes.ui.place();
+      toast('Saved!');
+      rebuild();
+    } else {
+      toast('Storage full: delete an old save');
+    }
   });
   grid.appendChild(newCard);
 
-  for (const { id, doc } of save.listSlots()) {
-    const card = el('div', 'slot-card');
-    card.appendChild(thumbFor(doc));
-    card.appendChild(el('div', 'slot-name', doc.name));
-    card.appendChild(el('div', 'slot-date', fmtDate(doc.ts)));
-    const del = el('button', 'slot-del', '🗑');
-    del.setAttribute('aria-label', `Delete ${doc.name}`);
-    card.appendChild(del);
-
-    card.addEventListener('click', () => loadDoc(doc));
-    armable(del, () => {
-      save.deleteSlot(id);
-      rebuild();
-    }, { ms: 2000 });
-    grid.appendChild(card);
-  }
+  for (const { id, doc } of save.listSlots()) grid.appendChild(slotCard(id, doc));
 
   const backups = save.listBackups();
   if (backups.length) {
-    grid.appendChild(el('div', 'slot-section', 'Earlier boards'));
+    grid.appendChild(el('div', 'slot-section label', 'Recent autosaves'));
     for (const doc of backups) {
-      const card = el('div', 'slot-card backup');
-      card.appendChild(thumbFor(doc));
-      card.appendChild(el('div', 'slot-name', doc.name));
-      card.appendChild(el('div', 'slot-date', fmtDate(doc.ts)));
+      const card = el('button', 'slot-card backup');
+      card.setAttribute('aria-label', `Open the board from ${fmtDate(doc.ts)}`);
+      card.append(picture(doc), el('span', 'slot-name', 'Earlier board'), el('span', 'slot-date', fmtDate(doc.ts)));
       card.addEventListener('click', () => loadDoc(doc));
       grid.appendChild(card);
     }
   }
 }
 
-export function show() {
+/** @param {Element | null} [opener] gets focus back on close (Safari
+ *  doesn't focus a tapped button, so the caller names it) */
+export function show(opener = document.activeElement) {
+  returnFocus = opener;
   rebuild();
   dialog.classList.remove('hidden');
   setPaused('menu', true);
+  closeBtn.focus({ preventScroll: true });
 }
 
 export function hide() {
   dialog.classList.add('hidden');
   setPaused('menu', false);
+  if (returnFocus instanceof HTMLElement && returnFocus !== document.body) returnFocus.focus({ preventScroll: true });
+  returnFocus = null;
 }
 
-document.getElementById('dlg-close').addEventListener('click', hide);
+closeBtn.addEventListener('click', hide);
 dialog.addEventListener('click', (e) => { if (e.target === dialog) hide(); });
+
+// keyboard: Escape closes, and Tab stays inside the dialog
+dialog.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    hide();
+  } else {
+    trapTab(dialog, e);
+  }
+});

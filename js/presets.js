@@ -17,7 +17,6 @@ export const PRESETS = [
   {
     id: 'cascade',
     name: 'Big Cascade',
-    emoji: '🏔️',
     blurb: 'Race down the mountain!',
     spawn: [[110, 20], [130, 50]],
     pieces: [
@@ -34,7 +33,6 @@ export const PRESETS = [
   {
     id: 'zigzagfalls',
     name: 'Zigzag Falls',
-    emoji: '🌊',
     blurb: 'Back and forth all the way down',
     spawn: [[420, 20], [440, 50]],
     pieces: [
@@ -51,7 +49,6 @@ export const PRESETS = [
   {
     id: 'loopcity',
     name: 'Loop City',
-    emoji: '🎢',
     blurb: 'Around the loop — if you dare!',
     spawn: [[45, 15], [85, 15]],
     pieces: [
@@ -77,7 +74,6 @@ export const PRESETS = [
   {
     id: 'roundandround',
     name: 'Round & Round',
-    emoji: '🔁',
     blurb: 'A course that never ends!',
     spawn: [[112, 10]],
     pieces: [
@@ -120,7 +116,6 @@ export const PRESETS = [
   {
     id: 'musicmountain',
     name: 'Music Mountain',
-    emoji: '🎵',
     blurb: 'Plinko pegs and chimes',
     spawn: [[502, 130], [500, 100]],
     pieces: [
@@ -142,7 +137,6 @@ export const PRESETS = [
   {
     id: 'spinfactory',
     name: 'Spin Factory',
-    emoji: '⚙️',
     blurb: 'Whirling wheels and seesaws',
     spawn: [[110, 20], [150, 50]],
     pieces: [

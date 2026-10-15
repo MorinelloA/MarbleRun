@@ -1,35 +1,45 @@
 // @ts-check
-// Splash screen: pick one of the designed tracks, continue the last build,
-// or start from a blank board. Opened from Home it can also just be closed.
+// The start screen: pick one of the designed tracks, carry on with the
+// last build, or start from an empty board, on the toy's stage. Opened from
+// Home it can also just be closed.
 
+import { GRID, BOARD_W, BOARD_H } from '../config.js';
 import { PRESETS } from '../presets.js';
 import { replaceBoard, undo, session } from '../actions.js';
 import * as world from '../world.js';
 import * as save from '../save.js';
+import * as theme from '../theme.js';
 import { setPaused } from '../pause.js';
 import { unlock } from '../audio/engine.js';
 import * as chimes from '../audio/chimes.js';
 import { renderPreview } from '../art/draw.js';
 import { toast } from './toast.js';
+import { trapTab } from './focus.js';
+import { createSplashToy } from './splashToy.js';
 
 const overlay = document.getElementById('splash');
 const grid = document.getElementById('splash-grid');
 const closeBtn = document.getElementById('splash-close');
+const toy = createSplashToy(document.getElementById('splash-stage'),
+  /** @type {HTMLCanvasElement} */ (document.getElementById('splash-toy')));
 
-function card(title, emoji, blurb, thumbEl, onPick) {
+const THUMB_W = 232, THUMB_H = 130;
+let closable = false;
+/** @type {Element | null} */
+let returnFocus = null;
+
+function card(title, blurb, thumbEl, onPick) {
   const el = document.createElement('button');
   el.className = 'splash-card';
-  const head = document.createElement('div');
-  head.className = 'splash-card-title';
-  head.textContent = `${emoji} ${title}`;
-  const sub = document.createElement('div');
+  const name = document.createElement('span');
+  name.className = 'splash-card-title';
+  name.textContent = title;
+  const sub = document.createElement('span');
   sub.className = 'splash-card-blurb';
   sub.textContent = blurb;
-  el.appendChild(thumbEl);
-  el.appendChild(head);
-  el.appendChild(sub);
+  el.append(thumbEl, name, sub);
   el.addEventListener('click', () => {
-    unlock();            // splash tap is the audio-unlock gesture
+    unlock(); // a card tap is the audio-unlock gesture
     chimes.ui.place();
     const replacing = session.dirty;
     onPick();
@@ -39,20 +49,27 @@ function card(title, emoji, blurb, thumbEl, onPick) {
   return el;
 }
 
-function emptyThumb(icon) {
-  const d = document.createElement('div');
-  d.className = 'splash-thumb-empty';
-  d.textContent = icon;
-  return d;
+function preview(pieces) {
+  try {
+    return renderPreview(pieces, THUMB_W, THUMB_H);
+  } catch (err) {
+    console.warn('preview failed:', err);
+    return renderPreview([], THUMB_W, THUMB_H);
+  }
 }
 
-function safeThumb(pieces) {
-  try {
-    return renderPreview(pieces, 232, 130);
-  } catch (err) {
-    console.warn('thumbnail failed:', err);
-    return emptyThumb('');
-  }
+/** An empty board with a dashed footprint, where the first piece goes. */
+function emptyBoardPreview() {
+  const c = renderPreview([], THUMB_W, THUMB_H);
+  const g = c.getContext('2d'); // still in board coordinates
+  const px = BOARD_W / THUMB_W; // board units per CSS px of the picture
+  g.setLineDash([6 * px, 5 * px]);
+  g.lineWidth = 2 * px;
+  g.strokeStyle = theme.current().ghostOk;
+  g.beginPath();
+  g.roundRect(BOARD_W / 2 - GRID, BOARD_H / 2 - GRID, GRID * 2, GRID * 2, 12);
+  g.stroke();
+  return c;
 }
 
 function rebuild() {
@@ -60,40 +77,59 @@ function rebuild() {
 
   const auto = save.readAutosave();
   if (auto) {
-    grid.appendChild(card('Keep Building', '🔨', 'Back to your last run',
-      safeThumb(auto.pieces), () => {
-        replaceBoard(auto.pieces, { source: 'autosave' });
-      }));
+    grid.appendChild(card('Keep Building', 'Back to your last run', preview(auto.pieces), () => {
+      replaceBoard(auto.pieces, { source: 'autosave' });
+    }));
   }
 
   for (const preset of PRESETS) {
-    grid.appendChild(card(preset.name, preset.emoji, preset.blurb,
-      safeThumb(preset.pieces), () => {
-        replaceBoard(preset.pieces, { source: `preset:${preset.id}` });
-        for (const [x, y] of preset.spawn) world.spawnMarble(x, y);
-      }));
+    grid.appendChild(card(preset.name, preset.blurb, preview(preset.pieces), () => {
+      replaceBoard(preset.pieces, { source: `preset:${preset.id}` });
+      for (const [x, y] of preset.spawn) world.spawnMarble(x, y);
+    }));
   }
 
-  grid.appendChild(card('Start Your Own', '✨', 'An empty board, all yours',
-    emptyThumb('🖌️'), () => {
-      replaceBoard([], { source: 'empty' });
-    }));
+  grid.appendChild(card('Start Your Own', 'An empty board, all yours', emptyBoardPreview(), () => {
+    replaceBoard([], { source: 'empty' });
+  }));
 }
 
-/** @param {{closable?: boolean}} [opts] closable when opened over a board */
-export function show({ closable = false } = {}) {
+/**
+ * @param {{closable?: boolean, opener?: Element | null}} [opts] closable
+ *   when opened over a board; opener gets focus back on close
+ */
+export function show({ closable: canClose = false, opener = document.activeElement } = {}) {
+  closable = canClose;
+  returnFocus = opener;
   rebuild();
   closeBtn.classList.toggle('hidden', !closable);
   overlay.classList.remove('hidden');
+  overlay.scrollTop = 0;
   setPaused('menu', true);
+  toy.start();
+  /** @type {HTMLElement} */ (grid.firstElementChild)?.focus({ preventScroll: true });
 }
 
 export function hide() {
   overlay.classList.add('hidden');
+  toy.stop();
   setPaused('menu', false);
+  if (returnFocus instanceof HTMLElement && returnFocus !== document.body) returnFocus.focus({ preventScroll: true });
+  returnFocus = null;
 }
+
+export const toyDebug = toy.debug;
 
 closeBtn.addEventListener('click', () => {
   unlock();
   hide();
+});
+
+overlay.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && closable) {
+    e.preventDefault();
+    hide();
+  } else {
+    trapTab(overlay, e);
+  }
 });
