@@ -24,7 +24,9 @@ export const MAX_SUBSTEPS = 4;
 // the units of body.speed; these three are in those.
 export const HIT_MIN_SPEED = 1.0;       // speed into a surface below which a knock is silent
 export const BOUNCE_MIN_SPEED = 2.2;    // a bumper or bouncer sounds above this relative speed
-export const CHIME_MIN_SPEED = 0.9;     // music pieces sound for slower marbles
+export const CHIME_MIN_SPEED = 0.4;     // music pieces sound for slow marbles too: one
+                                        // rolling gently onto the last of a long row of
+                                        // bars still rings it
 export const FLOOR_Y = BOARD_H - 6;     // top of the physics floor
 
 // Audio voice budgets

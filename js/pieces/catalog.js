@@ -20,8 +20,31 @@
 //     through the notes
 
 import * as g from './geometry.js';
+import { NOTES } from '../music.js';
 
 const T = 12; // standard track thickness
+
+const BELL_IDS = ['bell', 'bellD', 'bellE', 'bellF', 'bellG', 'bellA', 'bellB', 'bellHiC'];
+const BAR_IDS = ['xyloC', 'xyloD', 'xylo1', 'xyloF', 'xylo2', 'xylo3', 'xyloB', 'xyloHiC'];
+
+/** A bell that starts on note `note` (an index into music.js NOTES). */
+const bellOn = (id, note) => ({
+  id, name: `Bell ${NOTES[note].name}`, cells: [1, 1], role: 'bell',
+  rotatable: false,
+  tunable: { note },
+  build: () => [
+    g.circle(32, 28, 16, { behavior: { type: 'chime' } }),
+    g.rect(32, 52, 8, 26), // post
+  ],
+});
+
+/** A xylophone bar that starts on note `note`. */
+const dingBar = (id, note) => ({
+  id, name: `Ding ${NOTES[note].name}`, cells: [1, 1], role: 'bar',
+  rotatable: true,
+  tunable: { note },
+  build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime' } })],
+});
 
 export const CATALOG = [
   {
@@ -209,34 +232,13 @@ export const CATALOG = [
     rotatable: true,
     build: () => [g.rect(32, 56, 56, T, { restitution: 1.35, behavior: { type: 'bounce', sound: 'tramp' } })],
   },
-  {
-    id: 'bell', name: 'Bell', cells: [1, 1], role: 'bell',
-    rotatable: false,
-    tunable: { note: 0 },
-    build: () => [
-      g.circle(32, 28, 16, { behavior: { type: 'chime' } }),
-      g.rect(32, 52, 8, 26), // post
-    ],
-  },
-  {
-    // three starting notes of one tunable bar (old saves name them by id)
-    id: 'xylo1', name: 'Ding E', cells: [1, 1], role: 'bar',
-    rotatable: true,
-    tunable: { note: 2 },
-    build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime' } })],
-  },
-  {
-    id: 'xylo2', name: 'Ding G', cells: [1, 1], role: 'bar',
-    rotatable: true,
-    tunable: { note: 3 },
-    build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime' } })],
-  },
-  {
-    id: 'xylo3', name: 'Ding A', cells: [1, 1], role: 'bar',
-    rotatable: true,
-    tunable: { note: 4 },
-    build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime' } })],
-  },
+  // the music pieces: one tunable bell and one tunable bar, each in the tray
+  // once per note of the scale, so every note can be dragged straight out.
+  // The first bell and bars kept the ids they had when there were fewer
+  // (old saves and links name them by id): bell is C, xylo1 E, xylo2 G and
+  // xylo3 A.
+  ...BELL_IDS.map((id, note) => bellOn(id, note)),
+  ...BAR_IDS.map((id, note) => dingBar(id, note)),
   {
     id: 'peg', name: 'Peg', cells: [1, 1], role: 'structure',
     rotatable: false,
@@ -332,7 +334,7 @@ export const TRAY_GROUPS = [
   { id: 'track', name: 'Track', icon: 'track', ids: ['straight', 'ramp', 'steep', 'zigzag', 'stairs', 'tube'] },
   { id: 'curves', name: 'Curves', icon: 'curves', ids: ['curve', 'uturn', 'loop', 'funnel'] },
   { id: 'movers', name: 'Movers', icon: 'movers', ids: ['conveyor', 'escalator', 'lift', 'spinner', 'windmill', 'seesaw'] },
-  { id: 'music', name: 'Music', icon: 'music', ids: ['bell', 'xylo1', 'xylo2', 'xylo3'] },
+  { id: 'music', name: 'Music', icon: 'music', ids: [...BAR_IDS, ...BELL_IDS] },
   { id: 'gadgets', name: 'Gadgets', icon: 'gadgets', ids: ['dropper', 'gate', 'flipflop', 'cannon', 'bumper', 'tramp', 'basket', 'goal'] },
   { id: 'blocks', name: 'Blocks', icon: 'blocks', ids: ['block', 'half', 'peg'] },
 ].map(({ ids, ...group }) => ({ ...group, items: ids.flatMap(id => trayItemsOf(BY_ID[id])) }));

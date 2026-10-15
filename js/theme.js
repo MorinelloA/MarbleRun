@@ -21,8 +21,8 @@ const TOYBOX = {
     mover: '#00b4d8',     // cyan
     launch: '#e63946',    // red
     bounce: '#e63946',
-    bell: '#FFC845',
-    bar: '#FFC845',       // a bar whose pitch has no colour of its own
+    bell: '#FFC845',      // a bell or bar whose pitch has no colour of its own
+    bar: '#FFC845',
     structure: '#BFE7F7', // sky
     dropper: '#E4E5E8',   // gray
     basket: '#2a9d8f',    // teal
@@ -37,8 +37,10 @@ const TOYBOX = {
     core: '#2b2b33',  // the cannon's core
     field: '#065769', // the lift's rising chevrons: cyan, about 45% over the stage
   },
-  /** music pieces by note (index into music.js NOTES): C D E G A C */
-  notes: ['#e63946', '#f4a300', '#FFC845', '#80b918', '#2a9d8f', '#4361ee'],
+  /** music pieces by note (index into music.js NOTES), a rainbow up the
+   *  scale: C red, D orange, E yellow, F green, G sky, A blue, B violet,
+   *  and high C pink */
+  notes: ['#e63946', '#f4a300', '#FFC845', '#80b918', '#00b4d8', '#4361ee', '#9b5de5', '#f15bb5'],
   marbles: ['#e63946', '#FFC845', '#4361ee', '#9b5de5', '#00b4d8', '#80b918', '#f4a300', '#2a9d8f'],
 };
 

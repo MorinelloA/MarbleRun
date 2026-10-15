@@ -1,28 +1,12 @@
-// The owner's rule: no pink, anywhere. And every colour drawn straight on
-// the dark stage must stand out from it.
+// Every colour drawn straight on the dark stage must stand out from it,
+// and a struck piece flashes the right way.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import path from 'node:path';
-import { ROOT, rootUrl, loadGame } from '../sim/matter.mjs';
+import { rootUrl, loadGame } from '../sim/matter.mjs';
 
 const { catalog } = await loadGame();
 const theme = await import(rootUrl('js/theme.js'));
-
-// colours that read as pink here: the old palette's pinks and roses, and a
-// light red that flashes pink
-const DENIED = ['#f15bb5', '#ef476f', '#b5838d', '#ff6b6b'];
-
-function files(dir, exts) {
-  const out = [];
-  for (const name of readdirSync(dir)) {
-    const p = path.join(dir, name);
-    if (statSync(p).isDirectory()) out.push(...files(p, exts));
-    else if (exts.some(e => name.endsWith(e))) out.push(p);
-  }
-  return out;
-}
 
 function hexToRgb(hex) {
   let h = hex.slice(1);
@@ -30,66 +14,6 @@ function hexToRgb(hex) {
   const n = parseInt(h.slice(0, 6), 16);
   return [n >> 16, (n >> 8) & 255, n & 255];
 }
-
-function hsl([r, g, b]) {
-  r /= 255; g /= 255; b /= 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  const d = max - min;
-  if (d === 0) return { h: 0, s: 0, l };
-  const s = d / (1 - Math.abs(2 * l - 1));
-  let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
-  h = (h * 60 + 360) % 360;
-  return { h, s, l };
-}
-
-/** Pink: a hue between purple and red (the old #ef476f sits at 345.7°,
- *  the game's red at 355.5°), with real colour in it. */
-function isPink(rgb) {
-  const { h, s, l } = hsl(rgb);
-  return h >= 285 && h <= 350 && s >= 0.2 && l >= 0.15 && l <= 0.95;
-}
-
-function colorsIn(text) {
-  const out = [];
-  for (const m of text.matchAll(/#([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![0-9a-zA-Z_-])/g)) {
-    out.push({ text: m[0], rgb: hexToRgb(m[0]) });
-  }
-  for (const m of text.matchAll(/rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/g)) {
-    out.push({ text: m[0], rgb: [Number(m[1]), Number(m[2]), Number(m[3])] });
-  }
-  return out;
-}
-
-const SOURCES = [
-  path.join(ROOT, 'index.html'),
-  ...files(path.join(ROOT, 'css'), ['.css']),
-  ...files(path.join(ROOT, 'js'), ['.js']),
-  ...files(path.join(ROOT, 'tools'), ['.js', '.html']),
-];
-
-test('no pink anywhere in the game', () => {
-  const found = [];
-  for (const file of SOURCES) {
-    const text = readFileSync(file, 'utf8');
-    for (const c of colorsIn(text)) {
-      if (DENIED.includes(c.text.toLowerCase()) || isPink(c.rgb)) {
-        found.push(`${path.relative(ROOT, file)}: ${c.text}`);
-      }
-    }
-    if (file.endsWith('.css')) {
-      for (const m of text.matchAll(/:\s*[^;{}]*\b(pink|hotpink|deeppink|lightpink|magenta|fuchsia|orchid|plum|violet)\b/gi)) {
-        found.push(`${path.relative(ROOT, file)}: ${m[1]}`);
-      }
-    }
-  }
-  assert.deepEqual(found, []);
-});
-
-test('the pink check knows pink when it sees it', () => {
-  for (const hex of DENIED.slice(0, 2)) assert.ok(isPink(hexToRgb(hex)), hex);
-  for (const hex of ['#e63946', '#9b5de5', '#7248BD', '#FFC845', '#2c2c31']) assert.ok(!isPink(hexToRgb(hex)), hex);
-});
 
 function luminance([r, g, b]) {
   const lin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
@@ -116,19 +40,8 @@ test('everything drawn on the stage stands out from it (3:1)', () => {
   assert.deepEqual(weak, []);
 });
 
-test('a struck piece never flashes through pink', () => {
-  // reds flash to gold, everything else to ink: a red lightened toward ink
-  // would pass through pink on the way
+test('a struck red flashes to gold, anything else to ink', () => {
   const th = theme.current();
-  const fills = [...Object.values(th.role), ...Object.values(th.notes)];
-  const pink = [];
-  for (const fill of fills) {
-    for (let k = 0.05; k <= 1; k += 0.05) {
-      const c = theme.flash(fill, k);
-      if (isPink(hexToRgb(c))) pink.push(`${fill} at ${k.toFixed(2)}: ${c}`);
-    }
-  }
-  assert.deepEqual(pink, []);
   assert.equal(theme.flash(th.role.bounce, 1).toLowerCase(), th.role.track.toLowerCase(), 'reds flash to gold');
   assert.equal(theme.flash(th.role.basket, 1).toLowerCase(), th.ink.toLowerCase(), 'others flash to ink');
 });

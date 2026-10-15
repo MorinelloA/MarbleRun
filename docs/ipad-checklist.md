@@ -34,7 +34,8 @@ Install and offline play (step 9) need the game served over HTTPS, so do that st
 7. **Memory.** Tap Home and then the close button 20 times in a row. Nothing slows down, and the page doesn't reload by itself.
 8. **The new pieces and boards.**
    - Fair Share deals marbles alternately left and right, and both goal cups count them.
-   - Melody Lane plays up the scale on the left and back down on the right.
+   - Melody Lane plays all eight notes, do re mi fa so la ti do, up the scale on the top row and back down on the bottom row, every marble ringing every bar.
+   - The Music tray has a Ding bar and a bell for every note, C to High C, coloured like a rainbow from red to pink. Tapping one steps through all eight notes and back to C.
    - In My runs, Share this board and send the link to another device; it opens the same board there.
    - On a fresh visit (or after "How to play" on the start screen), the tips appear and tick off as you do each step.
 9. **Install and offline** (over HTTPS). Share, then Add to Home Screen. Open it from the icon: it fills the screen. Turn on Airplane Mode, close the app fully, and open it again: it still plays.

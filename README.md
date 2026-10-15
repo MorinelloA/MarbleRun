@@ -93,7 +93,7 @@ The minimum is iPadOS 15 (Safari 15). The stage is a fixed 1133 by 744 points, i
 | `tools/sound-sheet.html` | every sound effect to listen to, measured against a bar's note (rumbles and knocks stay under the music) |
 | `tools/icons.html` | draws the app icons |
 
-Colours live in `js/theme.js`, mirrored by `css/style.css`. Tests hold them together and enforce no pink anywhere.
+Colours live in `js/theme.js`, mirrored by `css/style.css`. Tests hold them together and keep everything drawn on the stage at 3:1 contrast or better. Music pieces take their note's colour, a rainbow up the scale from red C to pink high C.
 
 ## Sharing
 

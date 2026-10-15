@@ -246,7 +246,7 @@ for (const info of infos) {
   sensorExitEv += info.stats.sensorExitEv;
   if (info.t === 'cannon') { launches += info.stats.launches; cannonEnters += info.stats.enters; continue; }
   chimes += info.stats.chimes;
-  if (['bell', 'xylo1', 'xylo2', 'xylo3', 'bumper', 'tramp'].includes(info.t)) hardHits += info.stats.hardHits;
+  if (info.piece.entry.tunable || ['bumper', 'tramp'].includes(info.t)) hardHits += info.stats.hardHits;
 }
 const touched = infos.filter(i => i.stats.hits + i.stats.enters > 0);
 

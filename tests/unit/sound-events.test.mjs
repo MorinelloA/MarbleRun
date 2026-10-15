@@ -66,7 +66,7 @@ test("Melody Lane's bars ring with no knock or rumble on top", () => {
   const preset = presets.PRESETS.find(p => p.id === 'melodylane');
   actions.loadPieces(preset.pieces);
   const bars = [...board.board.pieces].filter(p => p.entry.id === 'xylo1' && p.row === 3);
-  assert.equal(bars.length, 6);
+  assert.equal(bars.length, 8);
   const [x, y] = preset.spawn[0];
   const m = world.spawnMarble(x, y);
   knocks.length = 0;
@@ -75,7 +75,7 @@ test("Melody Lane's bars ring with no knock or rumble on top", () => {
   run(4, () => {
     // fully over the bars, clear of the ramp before them and the cup after
     const bx = m.position.x;
-    if (bx > cellX(3) + MARBLE_R + 2 && bx < cellX(9) - MARBLE_R - 2) onBars.push(world.rollingOn(m.id));
+    if (bx > cellX(3) + MARBLE_R + 2 && bx < cellX(11) - MARBLE_R - 2) onBars.push(world.rollingOn(m.id));
   });
 
   for (const bar of bars) assert.ok(chimes.includes(bar), `the bar at column ${bar.col} rang`);

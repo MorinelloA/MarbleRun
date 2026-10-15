@@ -126,7 +126,7 @@ export const PRESETS = [
       { t: 'peg', c: 7, r: 3 },
       { t: 'peg', c: 6, r: 4 }, { t: 'peg', c: 8, r: 4 },
       { t: 'peg', c: 5, r: 5 }, { t: 'peg', c: 9, r: 5 },
-      { t: 'bell', c: 6, r: 6, n: 3 }, { t: 'bell', c: 8, r: 6, n: 5 },
+      { t: 'bell', c: 6, r: 6, n: 4 }, { t: 'bell', c: 8, r: 6, n: 7 },
       { t: 'basket', c: 4, r: 8 },
       { t: 'xylo1', c: 5, r: 8 }, { t: 'xylo2', c: 6, r: 8 }, { t: 'xylo3', c: 7, r: 8 },
       { t: 'xylo2', c: 8, r: 8 }, { t: 'xylo1', c: 9, r: 8 },
@@ -181,22 +181,25 @@ export const PRESETS = [
   {
     id: 'melodylane',
     name: 'Melody Lane',
-    blurb: 'Bars tuned up the scale, and back down',
+    blurb: 'Do re mi up the scale, and back down',
     spawn: [[118, 70], [1014, 276]],
     pieces: [
       // up: a steep start gives a marble the speed to roll the whole row of
-      // bars, tuned C D E G A C; a block behind the cup stops fliers
+      // bars, do re mi fa so la ti do; a block behind the cup stops fliers.
+      // (A taller start doesn't help: faster marbles hop over bars.)
       { t: 'dropper', c: 1, r: 0 },
       { t: 'steep', c: 1, r: 1 }, { t: 'ramp', c: 2, r: 3 },
       { t: 'xylo1', c: 3, r: 3, n: 0 }, { t: 'xylo1', c: 4, r: 3, n: 1 }, { t: 'xylo1', c: 5, r: 3, n: 2 },
       { t: 'xylo1', c: 6, r: 3, n: 3 }, { t: 'xylo1', c: 7, r: 3, n: 4 }, { t: 'xylo1', c: 8, r: 3, n: 5 },
-      { t: 'goal', c: 9, r: 4 }, { t: 'block', c: 10, r: 3 }, { t: 'block', c: 10, r: 4 },
+      { t: 'xylo1', c: 9, r: 3, n: 6 }, { t: 'xylo1', c: 10, r: 3, n: 7 },
+      { t: 'goal', c: 11, r: 4 }, { t: 'block', c: 12, r: 3 }, { t: 'block', c: 12, r: 4 },
       // and down: the same run mirrored, the marble button taking turns
       { t: 'dropper', c: 15, r: 3 },
       { t: 'steep', c: 15, r: 4, f: 1 }, { t: 'ramp', c: 14, r: 6, f: 1 },
-      { t: 'xylo1', c: 13, r: 6, n: 5 }, { t: 'xylo1', c: 12, r: 6, n: 4 }, { t: 'xylo1', c: 11, r: 6, n: 3 },
-      { t: 'xylo1', c: 10, r: 6, n: 2 }, { t: 'xylo1', c: 9, r: 6, n: 1 }, { t: 'xylo1', c: 8, r: 6, n: 0 },
-      { t: 'goal', c: 7, r: 7 }, { t: 'block', c: 6, r: 6 }, { t: 'block', c: 6, r: 7 },
+      { t: 'xylo1', c: 13, r: 6, n: 7 }, { t: 'xylo1', c: 12, r: 6, n: 6 }, { t: 'xylo1', c: 11, r: 6, n: 5 },
+      { t: 'xylo1', c: 10, r: 6, n: 4 }, { t: 'xylo1', c: 9, r: 6, n: 3 }, { t: 'xylo1', c: 8, r: 6, n: 2 },
+      { t: 'xylo1', c: 7, r: 6, n: 1 }, { t: 'xylo1', c: 6, r: 6, n: 0 },
+      { t: 'goal', c: 5, r: 7 }, { t: 'block', c: 4, r: 6 }, { t: 'block', c: 4, r: 7 },
     ],
     expect: {
       seconds: 30, extra: 4, every: 4,

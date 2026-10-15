@@ -254,21 +254,21 @@ function bell(entry) {
     disc(clapper, dome.x, dome.y + dome.r + 1.5, 3.5);
     return {
       stand, body, knob, clapper,
-      dots: noteDots(dome.x, dome.y + dome.r * 0.6, 4.6, 1.3),
+      dots: noteDots(dome.x, dome.y + dome.r * 0.7, 3.8, 1.2),
       pivot: [dome.x, dome.y - dome.r - 1],
     };
   });
   return {
     mode: 'live',
-    // its note shows as the clapper's colour and a row of dots; struck, it
-    // rocks on its knob (up to 8°, harder hits swing wider), dying away
-    // over about 700 ms
+    // coloured by its note, with the note's dots cut through, like a bar;
+    // struck, it rocks on its knob (up to 8°, harder hits swing wider),
+    // dying away over about 700 ms
     draw(g, piece, env) {
       const s = shapes(), th = theme.current();
       const note = noteOf(piece, entry);
       knock(g, s.stand, th.detail.post);
       const age = ageOf(piece, env);
-      let fill = theme.role(entry.role);
+      let fill = th.notes[note];
       g.save();
       if (env.reduced) {
         fill = flashed(fill, age, 300);
@@ -279,7 +279,7 @@ function bell(entry) {
         g.rotate(a);
         g.translate(-s.pivot[0], -s.pivot[1]);
       }
-      g.fillStyle = th.notes[note];
+      g.fillStyle = th.detail.post;
       g.fill(s.clapper);
       knock(g, s.body, fill);
       knock(g, s.knob, fill);
@@ -309,7 +309,7 @@ function xylophone(entry) {
     const [bar] = entry.build(null);
     const body = new Path2D();
     tile(body, bar.x, bar.y, bar.w, bar.h, bar.a, 4);
-    return { body, dots: noteDots(bar.x, bar.y, 7, 1.8) };
+    return { body, dots: noteDots(bar.x, bar.y, 6, 1.8) };
   });
   return {
     mode: 'live',
@@ -636,9 +636,8 @@ function goal(entry) {
 }
 
 const SPECIAL = {
-  dropper, escalator, lift, loop, cannon, bell, bumper, basket, seesaw,
+  dropper, escalator, lift, loop, cannon, bumper, basket, seesaw,
   tramp: bouncer,
-  xylo1: xylophone, xylo2: xylophone, xylo3: xylophone,
   spinner, windmill: spinner,
   block: (e) => plain(e, 8),
   half: (e) => plain(e, 8),
@@ -646,7 +645,10 @@ const SPECIAL = {
   gate, flipflop, goal,
 };
 
+/** every bell and every bar, whatever note it starts on */
+const BY_ROLE = { bell, bar: xylophone };
+
 /** @type {Record<string, {mode: string, draw: Function, overlay?: Function, base?: Function}>} */
-export const ART = Object.fromEntries(CATALOG.map(e => [e.id, (SPECIAL[e.id] || plain)(e)]));
+export const ART = Object.fromEntries(CATALOG.map(e => [e.id, (SPECIAL[e.id] || BY_ROLE[e.role] || plain)(e)]));
 
 export const MODES = ['static', 'overlay', 'live', 'dynamic'];
