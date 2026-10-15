@@ -49,7 +49,7 @@ node tests/sim/run.mjs --only fairshare --write-golden
 
 `node tests/sim/scenario.mjs <preset> --svg out.svg` traces one run as an SVG, and `--layout file.json` runs a candidate layout instead of a preset.
 
-Type checks run in editors through `jsconfig.json`. To run them on the command line, point any TypeScript 5.x or 6.x at it:
+Type checks run in editors through `jsconfig.json`. To run them on the command line, point any TypeScript from 5.x to 7.x at it:
 
 ```bash
 npx -p typescript tsc -p jsconfig.json

@@ -10,7 +10,8 @@ const { Bodies, Body, Constraint } = window.Matter;
 
 export class Piece {
   /**
-   * @param {object} entry catalog entry
+   * @param {any} entry catalog entry (untyped data; TypeScript 7 reads
+   *   `object` literally, where 5 and 6 read it as any)
    * @param {number} col @param {number} row
    * @param {number} rot 0-3 quarter turns clockwise
    * @param {number} flip 0|1 mirrored horizontally
