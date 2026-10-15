@@ -15,10 +15,11 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { loadGame } from './matter.mjs';
+import { loadGame, rootUrl } from './matter.mjs';
 
 const opts = parseArgs(process.argv.slice(2));
 const { Matter, config, world, board, actions, presets } = await loadGame();
+const behaviors = await import(rootUrl('js/behaviors.js'));
 const { Query } = Matter;
 const { PHYS_DT, BOARD_W, BOARD_H, MAX_MARBLES, GRID, GRID_Y, ROWS } = config;
 
@@ -60,7 +61,11 @@ const byPiece = new Map(infos.map(i => [i.piece, i]));
 const pieceOf = (body) => body?.plugin?.piece || body?.parent?.plugin?.piece || null;
 const loops = infos.filter(i => i.piece.entry.loop).map(i => i.piece);
 const baskets = infos.filter(i => i.t === 'basket').map(i => i.piece);
+const goalCups = infos.filter(i => i.t === 'goal');
 const spawners = infos.filter(i => i.piece.entry.spawner).map(i => i.piece);
+let flips = 0, passes = 0;
+world.on('flip', () => { flips++; });
+world.on('pass', () => { passes++; });
 
 // ---- the game's own events ----
 const sensorBalance = new Map(); // "marbleId:sensorId" -> enters - exits
@@ -104,6 +109,10 @@ function spawn(x, y, step) {
 
 function insideBasket(x, y) {
   return baskets.some(p => x > p.x + 14 && x < p.x + 50 && y > p.y + 8 && y < p.y + 52);
+}
+
+function insideGoal(x, y) {
+  return goalCups.some(({ piece: p }) => x > p.x + 8 && x < p.x + 56 && y > p.y + 6 && y < p.y + 52);
 }
 
 function relSpeed(b, info) {
@@ -151,11 +160,13 @@ function observe(s) {
       m.loopState.set(lp, st);
     }
 
-    const onFloor = y > BOARD_H - 30;
+    // a marble in a bottom-row basket or cup is caught, not on the floor
+    const caught = insideBasket(x, y) || insideGoal(x, y);
+    const onFloor = y > BOARD_H - 30 && !caught;
     if (onFloor) m.everFloor = true;
     // resting on the bottom row (music bars, a pile of marbles there) is
     // the end of a run, not a stall partway down the course
-    const finished = onFloor || y > GRID_Y + (ROWS - 1) * GRID || insideBasket(x, y);
+    const finished = onFloor || y > GRID_Y + (ROWS - 1) * GRID || caught;
     if (b.speed < 0.05 && !finished) {
       m.still++;
       if (m.still > m.maxStill) m.maxStill = m.still;
@@ -202,6 +213,7 @@ const finalState = (m) => {
   if (m.gone) return m.gone;
   const { x, y } = m.body.position;
   if (insideBasket(x, y)) return 'basket';
+  if (insideGoal(x, y)) return 'goal';
   if (y > BOARD_H - 30) return 'floor';
   return m.body.speed > 0.05 ? 'moving' : 'stuck';
 };
@@ -246,7 +258,10 @@ const report = {
   pieces,
   reachedTypes: [...new Set(touched.map(i => i.t))].sort(),
   untouched: infos.filter(i => i.stats.hits + i.stats.enters === 0).map(i => i.key),
+  goals: goalCups.map(i => ({ key: i.key, count: behaviors.goalCount(i.piece) })),
   totals: {
+    flips, passes,
+    goals: goalCups.reduce((n, i) => n + behaviors.goalCount(i.piece), 0),
     marbles: tracked.length,
     laps: tracked.reduce((n, m) => n + m.laps, 0),
     leaked: tracked.filter(m => m.everFloor || m.gone === 'culled').length,

@@ -4,6 +4,7 @@
 // and builds the Matter bodies for them.
 
 import { GRID, GRID_X, GRID_Y } from '../config.js';
+import { noteIndex } from '../music.js';
 
 const { Bodies, Body, Constraint } = window.Matter;
 
@@ -13,8 +14,9 @@ export class Piece {
    * @param {number} col @param {number} row
    * @param {number} rot 0-3 quarter turns clockwise
    * @param {number} flip 0|1 mirrored horizontally
+   * @param {number | null} [note] a music piece's note (index into NOTES)
    */
-  constructor(entry, col, row, rot = 0, flip = 0) {
+  constructor(entry, col, row, rot = 0, flip = 0, note = null) {
     this.entry = entry;
     this.col = col;
     this.row = row;
@@ -22,6 +24,7 @@ export class Piece {
     // only pieces with a mirrored twin can be mirrored; the loop's geometry
     // (and its gate logic) assumes it never is
     this.flip = entry.hasMirror && flip ? 1 : 0;
+    this.note = entry.tunable ? noteIndex(note, entry.tunable.note) : null;
     this.bodies = [];
     this.constraint = null;
     this.dynamicBody = null;
@@ -107,7 +110,10 @@ export class Piece {
   }
 
   serialize() {
-    return { t: this.entry.id, c: this.col, r: this.row, rot: this.rot, f: this.flip };
+    const s = { t: this.entry.id, c: this.col, r: this.row, rot: this.rot, f: this.flip };
+    // a note is stored only when it isn't the piece's own starting note
+    if (this.note !== null && this.note !== this.entry.tunable.note) s.n = this.note;
+    return s;
   }
 }
 

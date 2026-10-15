@@ -7,8 +7,12 @@
 
 import { board } from './board.js';
 import { BY_ID } from './pieces/catalog.js';
+import { noteIndex } from './music.js';
 
-const VERSION = 1;
+// 1: pieces as {t, c, r, rot, f}. 2 adds an optional note, n, for music
+// pieces; a version 1 document reads as version 2 with every note at its
+// piece's own starting note.
+const VERSION = 2;
 const MAX_BACKUPS = 5;
 const MAX_NAME = 60;
 const MAX_THUMB = 120000; // characters of data URL
@@ -60,7 +64,7 @@ function readIds() {
 export function parseDoc(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const v = raw.v === undefined ? 1 : raw.v;
-  if (v !== VERSION) return null;
+  if (v !== 1 && v !== 2) return null;
   if (!Array.isArray(raw.pieces)) return null;
   const pieces = [];
   for (const p of raw.pieces) {
@@ -68,7 +72,10 @@ export function parseDoc(raw) {
     if (typeof p.t !== 'string' || !Object.prototype.hasOwnProperty.call(BY_ID, p.t)) continue;
     if (!Number.isInteger(p.c) || !Number.isInteger(p.r)) continue;
     const rot = Number.isInteger(p.rot) ? ((p.rot % 4) + 4) % 4 : 0;
-    pieces.push({ t: p.t, c: p.c, r: p.r, rot, f: p.f ? 1 : 0 });
+    const piece = { t: p.t, c: p.c, r: p.r, rot, f: p.f ? 1 : 0 };
+    const n = BY_ID[p.t].tunable && v >= 2 ? noteIndex(p.n, null) : null;
+    if (n !== null) piece.n = n;
+    pieces.push(piece);
   }
   const thumb = typeof raw.thumb === 'string' && /^data:image\/(jpeg|png);base64,/.test(raw.thumb) &&
     raw.thumb.length <= MAX_THUMB ? raw.thumb : null;

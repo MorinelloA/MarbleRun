@@ -3,7 +3,8 @@
 
 import { BOARD_W } from '../config.js';
 import * as world from '../world.js';
-import { clearBoard, snapshot, commitEdit, undo, redo } from '../actions.js';
+import { clearBoard, snapshot, commitEdit, undo, redo, session } from '../actions.js';
+import { PRESETS } from '../presets.js';
 import * as history from '../history.js';
 import { board } from '../board.js';
 import { isBusy } from '../input.js';
@@ -45,6 +46,24 @@ export function togglePause() {
   setPaused('user', !pausedBy('user'));
 }
 
+/** Start the run again: clear the marbles (and goal counts), then drop
+ *  one from every dropper, or the preset's own marbles on an untouched
+ *  preset, or one from the sky. */
+export function restartRun() {
+  world.resetMarbles({ fade: true });
+  const spawners = [...board.pieces].filter(p => p.entry.spawner);
+  const preset = !session.dirty && session.source.startsWith('preset:')
+    ? PRESETS.find(p => `preset:${p.id}` === session.source) : null;
+  if (spawners.length) {
+    for (let i = 0; i < spawners.length; i++) dropMarble();
+  } else if (preset) {
+    for (const [x, y] of preset.spawn) world.spawnMarble(x, y);
+    chimes.ui.spawn();
+  } else {
+    dropMarble();
+  }
+}
+
 export function buildToolbar(openSaveDialog, openSplash) {
   onTap('btn-home', () => {
     unlock();
@@ -54,6 +73,11 @@ export function buildToolbar(openSaveDialog, openSplash) {
   onTap('btn-marble', () => {
     unlock();
     dropMarble();
+  });
+
+  onTap('btn-restart', () => {
+    unlock();
+    restartRun();
   });
 
   onTap('btn-reset', () => {

@@ -27,6 +27,8 @@ const TOYBOX = {
     dropper: '#E4E5E8',   // gray
     basket: '#2a9d8f',    // teal
     spinner: '#80b918',   // lime
+    gate: '#4361ee',      // royal
+    goal: '#FFC845',      // gold, like a trophy
   },
   /** small parts drawn over other shapes, not on the stage */
   detail: {
@@ -35,8 +37,8 @@ const TOYBOX = {
     core: '#2b2b33',  // the cannon's core
     field: '#065769', // the lift's rising chevrons: cyan, about 45% over the stage
   },
-  /** xylophone bars by pitch (Hz, as the catalog writes it) */
-  notes: { '659.25': '#e63946', '783.99': '#FFC845', '880': '#2a9d8f' },
+  /** music pieces by note (index into music.js NOTES): C D E G A C */
+  notes: ['#e63946', '#f4a300', '#FFC845', '#80b918', '#2a9d8f', '#4361ee'],
   marbles: ['#e63946', '#FFC845', '#4361ee', '#9b5de5', '#00b4d8', '#80b918', '#f4a300', '#2a9d8f'],
 };
 

@@ -1,7 +1,8 @@
 // @ts-check
-// Pointer state machine: tap a piece to turn it, hold it to mirror it, drag
-// to place, move or delete pieces, tap the sky for a marble, grab and fling
-// marbles. Single-pointer — the first active pointer wins.
+// Pointer state machine: tap a piece to turn it (a music piece: to change
+// its note), hold it to mirror it (a music bar: to turn it), drag to place,
+// move or delete pieces, tap the sky for a marble, grab and fling marbles.
+// Single-pointer — the first active pointer wins.
 
 import { GRID, BOARD_W, BOARD_H, COLS, ROWS, MARBLE_R } from './config.js';
 import { board } from './board.js';
@@ -9,6 +10,7 @@ import * as world from './world.js';
 import { placePiece, removePiece, snapshot, commitEdit, undo } from './actions.js';
 import { ghostCell, isTrash } from './placement.js';
 import { Piece } from './pieces/piece.js';
+import { NOTES } from './music.js';
 import * as fx from './fx.js';
 import * as chimes from './audio/chimes.js';
 import { unlock } from './audio/engine.js';
@@ -45,6 +47,12 @@ let grabbedMarble = null;
 const grabTrail = []; // recent {x, y, t} for fling velocity
 
 export function getGhost() { return ghost; }
+
+// what the player just did, for the first-run tips: place, turn, tune,
+// mirror, trash, drop
+const actionListeners = [];
+export function onAction(fn) { actionListeners.push(fn); }
+function did(action) { for (const fn of actionListeners) fn(action); }
 
 /** True while a press or drag is in progress (toolbar buttons wait). */
 export function isBusy() { return state !== 'idle'; }
@@ -126,10 +134,12 @@ function endDrag(e) {
   if (g) {
     if (g.trash) {
       chimes.ui.delete(); // an existing piece dropped on the tray: thrown away
+      did('trash');
     } else if (g.snapped && g.valid && board.canPlace(g.piece, g.piece.col, g.piece.row)) {
       placePiece(g.piece);
       fx.enter(g.piece, 'place', world.simTime());
       chimes.ui.place();
+      if (!g.origin) did('place');
     } else if (g.origin) {
       // invalid drop of an existing piece — put it back where it was
       g.piece.col = g.origin.col;
@@ -154,7 +164,7 @@ function endDrag(e) {
 function reshape(piece, rot, flip) {
   const before = snapshot();
   removePiece(piece);
-  const next = new Piece(piece.entry, piece.col, piece.row, rot, flip);
+  const next = new Piece(piece.entry, piece.col, piece.row, rot, flip, piece.note);
   // nudge back into bounds if a turned footprint pokes out
   next.col = Math.min(next.col, Math.max(0, COLS - next.fw));
   next.row = Math.min(next.row, Math.max(0, ROWS - next.fh));
@@ -163,6 +173,7 @@ function reshape(piece, rot, flip) {
     fx.enter(next, flip !== piece.flip ? 'flip' : 'turn', world.simTime());
     chimes.ui.rotate();
     commitEdit(before);
+    did(flip !== piece.flip ? 'mirror' : 'turn');
   } else {
     placePiece(piece); // no room — keep the old shape
     chimes.ui.deny();
@@ -179,10 +190,33 @@ function mirrorPiece(piece) {
   reshape(piece, piece.rot, piece.flip ? 0 : 1);
 }
 
+/** A music piece steps to its next note, and plays it. */
+function tunePiece(piece) {
+  const before = snapshot();
+  piece.note = (piece.note + 1) % NOTES.length;
+  commitEdit(before);
+  chimes.playNote(NOTES[piece.note].hz, piece);
+  fx.strike(piece, 4, world.simTime());
+  did('tune');
+}
+
+// a tap turns a piece, or retunes a music piece; holding mirrors a piece
+// with a twin, or turns a music bar (which has no mirror image)
+function tapPiece(piece) {
+  if (piece.entry.tunable) tunePiece(piece);
+  else rotatePiece(piece);
+}
+
+function holdPiece(piece) {
+  if (piece.entry.hasMirror) mirrorPiece(piece);
+  else if (piece.entry.tunable) rotatePiece(piece);
+  else chimes.ui.deny();
+}
+
 function onLongPress() {
   if (state !== 'pressed' || !pressedPiece) return;
   state = 'held';
-  mirrorPiece(pressedPiece);
+  holdPiece(pressedPiece);
   pressedPiece = null;
 }
 
@@ -285,10 +319,11 @@ window.addEventListener('pointerup', (e) => {
 
   if (state === 'pressed') {
     if (pressedPiece) {
-      if (performance.now() - downTime < TAP_MS) rotatePiece(pressedPiece);
+      if (performance.now() - downTime < TAP_MS) tapPiece(pressedPiece);
     } else if (downPos.y < BOARD_H - 20) {
       world.spawnMarble(downPos.x, downPos.y); // a press on empty sky drops a marble
       chimes.ui.spawn();
+      did('drop');
     }
     reset();
   } else if (state === 'held') {

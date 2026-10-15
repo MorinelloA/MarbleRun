@@ -1,0 +1,25 @@
+{
+  "id": "melodylane",
+  "seconds": 30,
+  "extra": 4,
+  "every": 4,
+  "traceHash": "8e387b57be6cc1ee1eb85920e97998ab2b78928f",
+  "totals": {
+    "flips": 0,
+    "passes": 0,
+    "goals": 6,
+    "marbles": 6,
+    "laps": 0,
+    "leaked": 0,
+    "culled": 0,
+    "maxStallS": 0,
+    "chimes": 44,
+    "hardHits": 43,
+    "launches": 0,
+    "cannonEnters": 0,
+    "sensorEnterEv": 6,
+    "sensorExitEv": 0,
+    "stuckSensorPairs": 0,
+    "nan": false
+  }
+}

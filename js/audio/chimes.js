@@ -37,6 +37,11 @@ export function strike(freq, vol = 0.8, decay = 1.8) {
 
 const lastChime = new WeakMap(); // piece -> performance.now() of its last sound
 
+/** A music piece's note: bells ring on, bars are short. */
+function ring(hz, vol, piece) {
+  strike(hz, vol, piece?.entry.role === 'bell' ? 1.8 : 1.2);
+}
+
 /** Routed from world 'chime' events. note is 'bumper' | 'tramp' | '*' | Hz string. */
 export function pieceSound(note, speed, piece) {
   const now = performance.now();
@@ -54,7 +59,20 @@ export function pieceSound(note, speed, piece) {
     return strike(f, vol);
   }
   const f = parseFloat(note);
-  if (f > 0) strike(f, vol, 1.2);
+  if (f > 0) ring(f, vol, piece);
+}
+
+/** Play a music piece's note right away (tuning it), whatever its cooldown. */
+export function playNote(hz, piece) {
+  if (piece) lastChime.set(piece, performance.now());
+  ring(hz, 0.6, piece);
+}
+
+/** A marble reached a goal: a quick rising arpeggio. */
+export function goal() {
+  strike(523.25, 0.45, 0.5);
+  setTimeout(() => strike(659.25, 0.45, 0.5), 70);
+  setTimeout(() => strike(783.99, 0.5, 0.8), 140);
 }
 
 export function boing(vol = 0.7) {
@@ -155,4 +173,5 @@ export const ui = {
   pickup: () => blip(440, 0.05, 0.3),
   spawn: () => blip(880, 0.06, 0.35, 'sine'),
   deny: () => blip(160, 0.12, 0.4, 'square'),
+  tick: () => blip(1200, 0.025, 0.18, 'square'), // a gate or switch clicking over
 };

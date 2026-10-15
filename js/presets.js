@@ -126,7 +126,7 @@ export const PRESETS = [
       { t: 'peg', c: 7, r: 3 },
       { t: 'peg', c: 6, r: 4 }, { t: 'peg', c: 8, r: 4 },
       { t: 'peg', c: 5, r: 5 }, { t: 'peg', c: 9, r: 5 },
-      { t: 'bell', c: 6, r: 6 }, { t: 'bell', c: 8, r: 6 },
+      { t: 'bell', c: 6, r: 6, n: 3 }, { t: 'bell', c: 8, r: 6, n: 5 },
       { t: 'basket', c: 4, r: 8 },
       { t: 'xylo1', c: 5, r: 8 }, { t: 'xylo2', c: 6, r: 8 }, { t: 'xylo3', c: 7, r: 8 },
       { t: 'xylo2', c: 8, r: 8 }, { t: 'xylo1', c: 9, r: 8 },
@@ -151,5 +151,56 @@ export const PRESETS = [
       { t: 'bumper', c: 14, r: 8 },
     ],
     expect: { seconds: 40, extra: 6, every: 3, reachAll: true, maxStallS: 3 },
+  },
+  {
+    id: 'fairshare',
+    name: 'Fair Share',
+    blurb: 'A flip-flop deals marbles left and right',
+    spawn: [[566, 20]],
+    pieces: [
+      // the funnel centres every marble on the flip-flop, which drops them
+      // out of its left and right chutes in turn
+      { t: 'dropper', c: 8, r: 0 },
+      { t: 'funnel', c: 7, r: 1 },
+      { t: 'flipflop', c: 7, r: 3 },
+      // each side: a ramp, a belt that settles the marble's speed, a gate
+      // that won't let it back, one more ramp, two cells of belt (enough to
+      // slow it from the ramp), and a goal cup that counts it in
+      { t: 'ramp', c: 7, r: 4, f: 1 }, { t: 'conveyor', c: 6, r: 4, f: 1 }, { t: 'gate', c: 5, r: 4, f: 1 },
+      { t: 'ramp', c: 4, r: 5, f: 1 }, { t: 'conveyor', c: 3, r: 5, f: 1 }, { t: 'conveyor', c: 2, r: 5, f: 1 },
+      { t: 'goal', c: 1, r: 6 },
+      { t: 'ramp', c: 8, r: 4 }, { t: 'conveyor', c: 9, r: 4 }, { t: 'gate', c: 10, r: 4 },
+      { t: 'ramp', c: 11, r: 5 }, { t: 'conveyor', c: 12, r: 5 }, { t: 'conveyor', c: 13, r: 5 },
+      { t: 'goal', c: 14, r: 6 },
+    ],
+    expect: {
+      seconds: 40, extra: 6, every: 3,
+      goalsEach: 3, minFlips: 6, minPasses: 6, noLeaks: true, maxStallS: 3,
+    },
+  },
+  {
+    id: 'melodylane',
+    name: 'Melody Lane',
+    blurb: 'Bars tuned up the scale, and back down',
+    spawn: [[118, 70], [1014, 276]],
+    pieces: [
+      // up: a steep start gives a marble the speed to roll the whole row of
+      // bars, tuned C D E G A C; a block behind the cup stops fliers
+      { t: 'dropper', c: 1, r: 0 },
+      { t: 'steep', c: 1, r: 1 }, { t: 'ramp', c: 2, r: 3 },
+      { t: 'xylo1', c: 3, r: 3, n: 0 }, { t: 'xylo1', c: 4, r: 3, n: 1 }, { t: 'xylo1', c: 5, r: 3, n: 2 },
+      { t: 'xylo1', c: 6, r: 3, n: 3 }, { t: 'xylo1', c: 7, r: 3, n: 4 }, { t: 'xylo1', c: 8, r: 3, n: 5 },
+      { t: 'goal', c: 9, r: 4 }, { t: 'block', c: 10, r: 3 }, { t: 'block', c: 10, r: 4 },
+      // and down: the same run mirrored, the marble button taking turns
+      { t: 'dropper', c: 15, r: 3 },
+      { t: 'steep', c: 15, r: 4, f: 1 }, { t: 'ramp', c: 14, r: 6, f: 1 },
+      { t: 'xylo1', c: 13, r: 6, n: 5 }, { t: 'xylo1', c: 12, r: 6, n: 4 }, { t: 'xylo1', c: 11, r: 6, n: 3 },
+      { t: 'xylo1', c: 10, r: 6, n: 2 }, { t: 'xylo1', c: 9, r: 6, n: 1 }, { t: 'xylo1', c: 8, r: 6, n: 0 },
+      { t: 'goal', c: 7, r: 7 }, { t: 'block', c: 6, r: 6 }, { t: 'block', c: 6, r: 7 },
+    ],
+    expect: {
+      seconds: 30, extra: 4, every: 4,
+      reachAll: true, ignore: ['dropper', 'block'], goalsEach: 3, maxStallS: 3,
+    },
   },
 ];

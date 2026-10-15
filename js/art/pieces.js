@@ -19,6 +19,8 @@
 // fraction of a second. With reduced motion, reactions are a flash only.
 
 import { CATALOG } from '../pieces/catalog.js';
+import { NOTES } from '../music.js';
+import { goalCount } from '../behaviors.js';
 import * as theme from '../theme.js';
 import * as fx from '../fx.js';
 import {
@@ -248,14 +250,22 @@ function bell(entry) {
     bellPath(body, dome.x, dome.y, dome.r);
     const knob = new Path2D();
     disc(knob, dome.x, dome.y - dome.r - 1, 3);
-    return { stand, body, knob, pivot: [dome.x, dome.y - dome.r - 1] };
+    const clapper = new Path2D();
+    disc(clapper, dome.x, dome.y + dome.r + 1.5, 3.5);
+    return {
+      stand, body, knob, clapper,
+      dots: noteDots(dome.x, dome.y + dome.r * 0.6, 4.6, 1.3),
+      pivot: [dome.x, dome.y - dome.r - 1],
+    };
   });
   return {
     mode: 'live',
-    // struck, it rocks on its knob (up to 8°, harder hits swing wider),
-    // dying away over about 700 ms
+    // its note shows as the clapper's colour and a row of dots; struck, it
+    // rocks on its knob (up to 8°, harder hits swing wider), dying away
+    // over about 700 ms
     draw(g, piece, env) {
       const s = shapes(), th = theme.current();
+      const note = noteOf(piece, entry);
       knock(g, s.stand, th.detail.post);
       const age = ageOf(piece, env);
       let fill = theme.role(entry.role);
@@ -269,8 +279,12 @@ function bell(entry) {
         g.rotate(a);
         g.translate(-s.pivot[0], -s.pivot[1]);
       }
+      g.fillStyle = th.notes[note];
+      g.fill(s.clapper);
       knock(g, s.body, fill);
       knock(g, s.knob, fill);
+      g.fillStyle = knockColor(g);
+      g.fill(s.dots[note]);
       g.restore();
     },
   };
@@ -278,28 +292,38 @@ function bell(entry) {
 
 const BAR_MS = 180;
 
+/** For each note n, a row of n + 1 dots centred on (x, y): the note's
+ *  place in the scale, readable without colour. */
+function noteDots(x, y, gap, r) {
+  return NOTES.map((_, n) => {
+    const path = new Path2D();
+    for (let i = 0; i <= n; i++) disc(path, x + (i - n / 2) * gap, y, r);
+    return path;
+  });
+}
+
+const noteOf = (piece, entry) => piece?.note ?? entry.tunable.note;
+
 function xylophone(entry) {
   const shapes = lazy(() => {
     const [bar] = entry.build(null);
     const body = new Path2D();
     tile(body, bar.x, bar.y, bar.w, bar.h, bar.a, 4);
-    const rivets = new Path2D();
-    const off = bar.w / 2 - 8;
-    disc(rivets, bar.x - off, bar.y, 2);
-    disc(rivets, bar.x + off, bar.y, 2);
-    return { body, rivets, note: bar.opts.behavior.note };
+    return { body, dots: noteDots(bar.x, bar.y, 7, 1.8) };
   });
   return {
     mode: 'live',
-    // struck, it flashes and dips 2 px
+    // coloured by its note, with the note's dots cut through; struck, it
+    // flashes and dips 2 px
     draw(g, piece, env) {
       const s = shapes();
+      const note = noteOf(piece, entry);
       const age = ageOf(piece, env);
       g.save();
       if (!env.reduced && age < BAR_MS) g.translate(0, 2 * Math.sin((Math.PI * age) / BAR_MS));
-      knock(g, s.body, flashed(theme.current().notes[s.note] || theme.role(entry.role), age, BAR_MS));
+      knock(g, s.body, flashed(theme.current().notes[note], age, BAR_MS));
       g.fillStyle = knockColor(g);
-      g.fill(s.rivets);
+      g.fill(s.dots[note]);
       g.restore();
     },
   };
@@ -483,6 +507,134 @@ function seesaw(entry) {
   };
 }
 
+const SWING_MS = 380;
+
+function gate(entry) {
+  const shapes = lazy(() => {
+    const [floorPart, flapPart] = entry.build(null);
+    const floor = new Path2D();
+    pillOf(floor, floorPart);
+    const flap = new Path2D();
+    pillOf(flap, flapPart);
+    const top = flapPart.y - flapPart.h / 2;
+    const hinge = new Path2D();
+    disc(hinge, flapPart.x, top, 3.5);
+    return { floor, flap, hinge, pivot: [flapPart.x, top], dir: flapPart.opts.behavior.dir };
+  });
+  return {
+    mode: 'live',
+    // a flap hung from a hinge; an arrow shows the way through, and the flap
+    // swings open as a marble pushes past
+    draw(g, piece, env) {
+      const s = shapes(), th = theme.current();
+      knock(g, s.floor, theme.role('track'));
+      // the arrow, on the side marbles come out
+      g.save();
+      g.strokeStyle = theme.role(entry.role);
+      g.lineWidth = 2.5;
+      g.lineCap = 'round';
+      g.lineJoin = 'round';
+      g.beginPath();
+      chevron(g, s.pivot[0] + s.dir[0] * 13, s.pivot[1] + 10, s.dir[0], s.dir[1], 5, 5);
+      g.stroke();
+      g.restore();
+      const age = ageOf(piece, env);
+      g.save();
+      if (age < SWING_MS) {
+        const open = env.reduced ? 0 : 1.1 * Math.sin((Math.PI * age) / SWING_MS);
+        g.translate(s.pivot[0], s.pivot[1]);
+        g.rotate(-open * s.dir[0]);
+        g.translate(-s.pivot[0], -s.pivot[1]);
+      }
+      knock(g, s.flap, flashed(theme.role(entry.role), age, env.reduced ? 220 : 0));
+      knock(g, s.hinge, th.ink);
+      g.restore();
+    },
+  };
+}
+
+const FLIP_MS = 140;
+
+function flipflop(entry) {
+  const shapes = lazy(() => {
+    const [flapPart, ...rest] = entry.build(null);
+    const flap = new Path2D();
+    pillOf(flap, { ...flapPart, a: 0 });
+    const walls = rest.filter(p => !p.opts.sensor).map(p => {
+      const path = new Path2D();
+      pillOf(path, p);
+      return path;
+    });
+    const hub = new Path2D();
+    disc(hub, flapPart.x, flapPart.y, 5);
+    const stand = new Path2D(); // decoration only: the flap turns on a pin
+    softPolygon(stand, [[flapPart.x, flapPart.y + 4], [flapPart.x + 11, flapPart.y + 30], [flapPart.x - 11, flapPart.y + 30]], 3);
+    return { flap, walls, hub, stand, pivot: [flapPart.x, flapPart.y], angle: flapPart.a };
+  });
+  return {
+    mode: 'live',
+    // the flap tips toward one side; once a marble has gone it eases over
+    // to the other
+    draw(g, piece, env) {
+      const s = shapes(), th = theme.current();
+      const body = piece.bodies.find(b => b.plugin.behavior?.type === 'flap');
+      const target = body ? body.angle : s.angle;
+      const age = ageOf(piece, env);
+      const p = env.reduced || age >= FLIP_MS ? 1 : 1 - (1 - age / FLIP_MS) ** 3;
+      knockAll(g, s.walls, theme.role(entry.role));
+      knock(g, s.stand, th.detail.hub);
+      g.save();
+      g.translate(s.pivot[0], s.pivot[1]);
+      g.rotate(-target + 2 * target * p);
+      g.translate(-s.pivot[0], -s.pivot[1]);
+      knock(g, s.flap, theme.role(entry.role));
+      g.restore();
+      knock(g, s.hub, th.detail.hub);
+    },
+  };
+}
+
+const GOAL_MS = 260;
+
+function goal(entry) {
+  const shapes = lazy(() => {
+    const [left, right, base] = entry.build(null);
+    const walls = [left, right].map(p => {
+      const path = new Path2D();
+      pillOf(path, p);
+      return path;
+    });
+    const cup = new Path2D();
+    tile(cup, base.x, base.y, base.w, base.h, 0, 4);
+    return { walls, cup, label: [base.x, base.y + 0.5], centre: [base.x, base.y - 20] };
+  });
+  return {
+    mode: 'live',
+    // counts the marbles that reach it on its base; a goal flashes and
+    // bounces it
+    draw(g, piece, env) {
+      const s = shapes();
+      const age = ageOf(piece, env);
+      const fill = flashed(theme.role(entry.role), age, GOAL_MS);
+      g.save();
+      if (!env.reduced && age < GOAL_MS) {
+        const k = 1 + 0.08 * Math.sin((Math.PI * age) / GOAL_MS);
+        g.translate(s.centre[0], s.centre[1]);
+        g.scale(k, k);
+        g.translate(-s.centre[0], -s.centre[1]);
+      }
+      knockAll(g, s.walls, fill);
+      knock(g, s.cup, fill);
+      g.fillStyle = knockColor(g);
+      g.font = '800 11px "Mona Sans", "Helvetica Neue", Arial, sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(String(piece?.bodies?.length ? goalCount(piece) : 0), s.label[0], s.label[1]);
+      g.restore();
+    },
+  };
+}
+
 const SPECIAL = {
   dropper, escalator, lift, loop, cannon, bell, bumper, basket, seesaw,
   tramp: bouncer,
@@ -490,6 +642,8 @@ const SPECIAL = {
   spinner, windmill: spinner,
   block: (e) => plain(e, 8),
   half: (e) => plain(e, 8),
+  conveyor: escalator,
+  gate, flipflop, goal,
 };
 
 /** @type {Record<string, {mode: string, draw: Function, overlay?: Function, base?: Function}>} */

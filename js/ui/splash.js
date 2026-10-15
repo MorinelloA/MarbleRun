@@ -16,10 +16,12 @@ import { renderPreview } from '../art/draw.js';
 import { toast } from './toast.js';
 import { trapTab } from './focus.js';
 import { createSplashToy } from './splashToy.js';
+import * as coach from './coach.js';
 
 const overlay = document.getElementById('splash');
 const grid = document.getElementById('splash-grid');
 const closeBtn = document.getElementById('splash-close');
+const helpBtn = document.getElementById('splash-help');
 const toy = createSplashToy(document.getElementById('splash-stage'),
   /** @type {HTMLCanvasElement} */ (document.getElementById('splash-toy')));
 
@@ -49,12 +51,19 @@ function card(title, blurb, thumbEl, onPick) {
   return el;
 }
 
+/** A card's picture, sized by the card's CSS (fluid), not inline. */
+function fluid(c) {
+  c.style.width = '';
+  c.style.height = '';
+  return c;
+}
+
 function preview(pieces) {
   try {
-    return renderPreview(pieces, THUMB_W, THUMB_H);
+    return fluid(renderPreview(pieces, THUMB_W, THUMB_H));
   } catch (err) {
     console.warn('preview failed:', err);
-    return renderPreview([], THUMB_W, THUMB_H);
+    return fluid(renderPreview([], THUMB_W, THUMB_H));
   }
 }
 
@@ -69,7 +78,7 @@ function emptyBoardPreview() {
   g.beginPath();
   g.roundRect(BOARD_W / 2 - GRID, BOARD_H / 2 - GRID, GRID * 2, GRID * 2, 12);
   g.stroke();
-  return c;
+  return fluid(c);
 }
 
 function rebuild() {
@@ -102,6 +111,7 @@ export function show({ closable: canClose = false, opener = document.activeEleme
   closable = canClose;
   returnFocus = opener;
   rebuild();
+  helpBtn.setAttribute('aria-pressed', String(coach.isPending()));
   closeBtn.classList.toggle('hidden', !closable);
   overlay.classList.remove('hidden');
   overlay.scrollTop = 0;
@@ -116,7 +126,16 @@ export function hide() {
   setPaused('menu', false);
   if (returnFocus instanceof HTMLElement && returnFocus !== document.body) returnFocus.focus({ preventScroll: true });
   returnFocus = null;
+  coach.boardShown();
 }
+
+// "How to play" switches the first-run tips on (or back off) for when the
+// board shows
+helpBtn.addEventListener('click', () => {
+  unlock();
+  coach.setPending(!coach.isPending());
+  helpBtn.setAttribute('aria-pressed', String(coach.isPending()));
+});
 
 export const toyDebug = toy.debug;
 

@@ -92,6 +92,12 @@ export function checkExpect(preset, r) {
     const n = r.marbles.filter(m => m.final === 'basket').length;
     if (n < e.minInBasket) fails.push(`${n} in a basket < ${e.minInBasket}`);
   }
+  if (e.goalsEach != null) {
+    const short = r.goals.filter(g => g.count < e.goalsEach);
+    if (short.length) fails.push(`goals ${short.map(g => `${g.key}: ${g.count}`).join(', ')} < ${e.goalsEach} each`);
+  }
+  if (e.minFlips != null && t.flips < e.minFlips) fails.push(`flip-flops flipped ${t.flips} < ${e.minFlips}`);
+  if (e.minPasses != null && t.passes < e.minPasses) fails.push(`gates passed ${t.passes} < ${e.minPasses}`);
   if (t.cannonEnters && t.launches < t.cannonEnters) fails.push(`cannons fired ${t.launches}/${t.cannonEnters}`);
   if (t.stuckSensorPairs) fails.push(`${t.stuckSensorPairs} sensor exit(s) lost`);
   if (t.nan) fails.push('NaN positions');

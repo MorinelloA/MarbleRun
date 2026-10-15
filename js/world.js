@@ -4,8 +4,9 @@
 
 import {
   BOARD_W, BOARD_H, MARBLE_R, MAX_MARBLES, SPEED_CLAMP, GRID, GRID_X, COLS,
-  IMPACT_MIN_SPEED, FLOOR_Y,
+  IMPACT_MIN_SPEED, CHIME_MIN_SPEED, FLOOR_Y,
 } from './config.js';
+import { NOTES } from './music.js';
 import * as behaviors from './behaviors.js';
 
 const { Engine, World, Bodies, Body, Events, Composite, Vector } = window.Matter;
@@ -44,7 +45,10 @@ export function isRolling(marbleId) {
 }
 
 // ---- event fan-out (audio and visual effects subscribe to these) ----
-const handlers = { impact: [], sensorEnter: [], sensorExit: [], chime: [], marbleRemoved: [] };
+const handlers = {
+  impact: [], sensorEnter: [], sensorExit: [], chime: [], marbleRemoved: [],
+  pass: [], flip: [], goal: [], // a gate let a marble through, a flip-flop flipped, a goal scored
+};
 export function on(type, fn) { handlers[type].push(fn); }
 function emit(type, ...args) { for (const fn of handlers[type]) fn(...args); }
 behaviors.init(emit);
@@ -96,10 +100,11 @@ export function removeMarble(b, fade = false) {
   emit('marbleRemoved', b, fade);
 }
 
-/** Remove every marble; `fade` when the player cleared them (not when a
- *  whole new board is loading). */
+/** Remove every marble, which starts a new run (goal cups count from 0);
+ *  `fade` when the player cleared them (not when a new board is loading). */
 export function resetMarbles({ fade = false } = {}) {
   for (const b of [...marbles]) removeMarble(b, fade);
+  behaviors.resetGoals();
 }
 
 /** Simulated time in ms (advances only while physics steps). */
@@ -161,11 +166,14 @@ Events.on(engine, 'collisionStart', (ev) => {
     if (isMarble) touch(other);
 
     const rel = Vector.magnitude(Vector.sub(m.velocity, rootOf(other).velocity || { x: 0, y: 0 }));
-    if (rel > IMPACT_MIN_SPEED) {
-      emit('impact', rel, isMarble, m);
-      const bh = other.plugin?.behavior;
-      if (bh?.type === 'chime') emit('chime', bh.note, rel, pieceOf(other));
-      else if (bh?.type === 'bounce') emit('chime', bh.sound, rel, pieceOf(other));
+    if (rel > IMPACT_MIN_SPEED) emit('impact', rel, isMarble, m);
+    const bh = other.plugin?.behavior;
+    if (bh?.type === 'chime' && rel > CHIME_MIN_SPEED) {
+      // music sounds for slow marbles too; the note is the placed piece's
+      const piece = pieceOf(other);
+      emit('chime', piece?.note != null ? String(NOTES[piece.note].hz) : bh.note, rel, piece);
+    } else if (bh?.type === 'bounce' && rel > IMPACT_MIN_SPEED) {
+      emit('chime', bh.sound, rel, pieceOf(other));
     }
   }
 });

@@ -75,7 +75,7 @@ export const board = {
 
   /** Order-independent fingerprint of serialized pieces, for "did anything change?" checks. */
   signature(pieces) {
-    return pieces.map(p => `${p.t}:${p.c}:${p.r}:${p.rot || 0}:${p.f || 0}`).sort().join('|');
+    return pieces.map(p => `${p.t}:${p.c}:${p.r}:${p.rot || 0}:${p.f || 0}:${p.n ?? ''}`).sort().join('|');
   },
 
   /** Build Piece objects from saved data (does not add them anywhere). */
@@ -84,7 +84,7 @@ export const board = {
     for (const s of saved || []) {
       const entry = BY_ID[s.t];
       if (!entry) { console.warn('Unknown piece type in save:', s.t); continue; }
-      const piece = new Piece(entry, s.c, s.r, s.rot, s.f);
+      const piece = new Piece(entry, s.c, s.r, s.rot, s.f, s.n);
       if (!this.inBounds(piece.col, piece.row, piece.fw, piece.fh)) continue;
       out.push(piece);
     }

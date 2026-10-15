@@ -12,12 +12,15 @@ import * as world from './world.js';
 import * as render from './render.js';
 import * as fx from './fx.js';
 import * as theme from './theme.js';
+import * as share from './share.js';
+import { toast } from './ui/toast.js';
+import { boardShown as coachBoardShown } from './ui/coach.js';
 import * as input from './input.js';
 import { board } from './board.js';
 import * as actions from './actions.js';
 import * as save from './save.js';
 import { buildPalette, refreshIcons } from './ui/palette.js';
-import { buildToolbar, syncMarbleCount, togglePause } from './ui/toolbar.js';
+import { buildToolbar, syncMarbleCount, togglePause, restartRun } from './ui/toolbar.js';
 import * as saveload from './ui/saveload.js';
 import * as splash from './ui/splash.js';
 import { initOrientation } from './orientation.js';
@@ -49,6 +52,18 @@ world.on('sensorEnter', (name, sensor, marble) => {
 world.on('sensorExit', (name, sensor, marble) => {
   if (name === 'funnel') chimes.funnelExit(marble.id);
 });
+world.on('pass', (piece) => {
+  fx.strike(piece, 1, world.simTime());
+  chimes.ui.tick();
+});
+world.on('flip', (piece) => {
+  fx.strike(piece, 1, world.simTime());
+  chimes.ui.tick();
+});
+world.on('goal', (piece) => {
+  fx.strike(piece, 1, world.simTime());
+  chimes.goal();
+});
 world.on('marbleRemoved', (marble, fade) => {
   rolling.releaseMarble(marble.id);
   impacts.forget(marble.id);
@@ -79,6 +94,7 @@ window.addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'd' || e.key === 'D') hudOn = !hudOn;
   else if ((e.key === 'p' || e.key === 'P') && !pausedBy('menu')) togglePause();
+  else if ((e.key === 'r' || e.key === 'R') && !pausedBy('menu')) restartRun();
 });
 
 const f1 = (v) => v.toFixed(1);
@@ -174,6 +190,25 @@ buildPalette();
 buildToolbar(saveload.show, (opener) => splash.show({ closable: true, opener }));
 initOrientation();
 
+/** Open the board a shared link carries, if the address has one. */
+function openSharedLink() {
+  const doc = share.fromLocation();
+  if (!location.hash.startsWith('#b=')) return false;
+  share.clearLocation();
+  if (!doc || !doc.pieces.length) {
+    toast('That link has no board in it');
+    return false;
+  }
+  const replacing = actions.session.dirty;
+  actions.replaceBoard(doc.pieces, { source: 'link' });
+  toast('Opened a shared board', replacing ? { action: { label: 'Undo', fn: actions.undo } } : {});
+  coachBoardShown();
+  return true;
+}
+window.addEventListener('hashchange', () => {
+  if (openSharedLink()) splash.hide();
+});
+
 if (TEST) {
   render.frame(null, hud(), world.simTime());
 } else {
@@ -181,7 +216,9 @@ if (TEST) {
   // leave a frozen game
   requestAnimationFrame(frame);
   try {
-    splash.show(); // the start screen owns what loads first
+    // a shared link goes straight to its board; otherwise the start screen
+    // owns what loads first
+    if (!openSharedLink()) splash.show();
   } catch (err) {
     console.error('start screen failed:', err);
     splash.hide();

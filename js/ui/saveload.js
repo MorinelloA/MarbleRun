@@ -15,6 +15,7 @@ import { toast } from './toast.js';
 import { armable } from './confirm.js';
 import { icon } from './icons.js';
 import { trapTab } from './focus.js';
+import { linkFor } from '../share.js';
 
 const dialog = document.getElementById('save-dialog');
 const grid = document.getElementById('slot-grid');
@@ -35,12 +36,16 @@ function el(tag, className, text) {
 }
 
 function picture(doc) {
+  let c;
   try {
-    return renderPreview(doc.pieces, THUMB_W, THUMB_H);
+    c = renderPreview(doc.pieces, THUMB_W, THUMB_H);
   } catch (err) {
     console.warn('preview failed:', err);
-    return renderPreview([], THUMB_W, THUMB_H);
+    c = renderPreview([], THUMB_W, THUMB_H);
   }
+  c.style.width = ''; // sized by the card's CSS
+  c.style.height = '';
+  return c;
 }
 
 function loadDoc(doc) {
@@ -186,6 +191,28 @@ export function hide() {
 
 closeBtn.addEventListener('click', hide);
 dialog.addEventListener('click', (e) => { if (e.target === dialog) hide(); });
+
+// share the board as a link: the system's share sheet where there is one,
+// otherwise the clipboard
+document.getElementById('dlg-share').addEventListener('click', async () => {
+  const pieces = board.serialize();
+  if (!pieces.length) { toast('Build something first!'); return; }
+  const url = linkFor(pieces);
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'Marble Run Builder', text: 'Try my marble run!', url });
+      return;
+    } catch (err) {
+      if (err?.name === 'AbortError') return; // the player closed the sheet
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('Link copied: send it to a friend');
+  } catch {
+    window.prompt('Copy this link to share the board', url);
+  }
+});
 
 // keyboard: Escape closes, and Tab stays inside the dialog
 dialog.addEventListener('keydown', (e) => {

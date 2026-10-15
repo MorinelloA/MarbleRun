@@ -1,0 +1,25 @@
+{
+  "id": "fairshare",
+  "seconds": 40,
+  "extra": 6,
+  "every": 3,
+  "traceHash": "15bd35567ab1ce4b717fe2a9800b94cfbe70b40e",
+  "totals": {
+    "flips": 7,
+    "passes": 7,
+    "goals": 7,
+    "marbles": 7,
+    "laps": 0,
+    "leaked": 0,
+    "culled": 0,
+    "maxStallS": 0.01,
+    "chimes": 0,
+    "hardHits": 0,
+    "launches": 0,
+    "cannonEnters": 0,
+    "sensorEnterEv": 21,
+    "sensorExitEv": 14,
+    "stuckSensorPairs": 0,
+    "nan": false
+  }
+}

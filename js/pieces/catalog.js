@@ -15,6 +15,9 @@
 //     flipped twin in the tray; only these can be mirrored)
 //   spawner: {x, y} -> marbles from the toolbar drop from here
 //   loop: {center, apexRadius, exitWindow} -> loop lap tracking
+//   tunable: {note} -> a music piece: it plays its placed copy's note (an
+//     index into music.js NOTES, `note` to start with), and a tap steps
+//     through the notes
 
 import * as g from './geometry.js';
 
@@ -209,25 +212,30 @@ export const CATALOG = [
   {
     id: 'bell', name: 'Bell', cells: [1, 1], role: 'bell',
     rotatable: false,
+    tunable: { note: 0 },
     build: () => [
-      g.circle(32, 28, 16, { behavior: { type: 'chime', note: '*' } }),
+      g.circle(32, 28, 16, { behavior: { type: 'chime' } }),
       g.rect(32, 52, 8, 26), // post
     ],
   },
   {
+    // three starting notes of one tunable bar (old saves name them by id)
     id: 'xylo1', name: 'Ding E', cells: [1, 1], role: 'bar',
     rotatable: true,
-    build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime', note: '659.25' } })],
+    tunable: { note: 2 },
+    build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime' } })],
   },
   {
     id: 'xylo2', name: 'Ding G', cells: [1, 1], role: 'bar',
     rotatable: true,
-    build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime', note: '783.99' } })],
+    tunable: { note: 3 },
+    build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime' } })],
   },
   {
     id: 'xylo3', name: 'Ding A', cells: [1, 1], role: 'bar',
     rotatable: true,
-    build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime', note: '880' } })],
+    tunable: { note: 4 },
+    build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime' } })],
   },
   {
     id: 'peg', name: 'Peg', cells: [1, 1], role: 'structure',
@@ -260,6 +268,52 @@ export const CATALOG = [
     dynamic: { pivot: [32, 32], frictionAir: 0.01, density: 0.0005, angle0: Math.PI / 5 },
     build: () => [g.rect(32, 32, 56, 8), g.circle(32, 32, 8)],
   },
+  {
+    id: 'conveyor', name: 'Conveyor', cells: [1, 1], role: 'mover',
+    rotatable: true, hasMirror: true,
+    // a belt: carries whatever lands on it to the right (its twin: left) at
+    // a steady walking pace, speeding up slow marbles and braking fast ones
+    build: () => [
+      g.bar(0, 52, 64, 52, T, { behavior: { type: 'push', dir: [1, 0], speed: 2.5 }, friction: 0.005 }),
+    ],
+  },
+  {
+    id: 'gate', name: 'Gate', cells: [1, 1], role: 'gate',
+    rotatable: true, hasMirror: true,
+    // a flap across a track: marbles rolling right push straight through,
+    // marbles coming back are stopped (its twin lets them through leftward)
+    build: () => [
+      g.bar(0, 52, 64, 52, T),
+      g.rect(32, 29, 6, 46, { behavior: { type: 'oneway', dir: [1, 0] } }),
+    ],
+  },
+  {
+    id: 'flipflop', name: 'Flip-Flop', cells: [2, 1], role: 'spinner',
+    rotatable: false,
+    // a flap that tips marbles off one side, then flips over once they're
+    // clear: they take turns going left and right. Marbles come in at the
+    // top middle; the side walls catch however fast they come off the flap
+    // and drop them out of the left or right cell, a marble's width and a
+    // bit from the flap's lowered end.
+    build: () => [
+      g.rect(64, 30, 60, 8, { a: 0.5, behavior: { type: 'flap' } }),
+      g.rect(8, 40, 8, 48),
+      g.rect(120, 40, 8, 48),
+      g.rect(64, 24, 76, 44, { sensor: true, behavior: { type: 'flipzone' } }),
+    ],
+  },
+  {
+    id: 'goal', name: 'Goal', cells: [1, 1], role: 'goal',
+    rotatable: false,
+    // a cup that counts the marbles that reach it (on its base)
+    build: () => [
+      g.bar(8, 14, 14, 52, 7),  // walls lean out; their bars' material is outside
+      g.bar(50, 52, 56, 14, 7),
+      g.rect(32, 57, 44, 14),
+      // the whole inside counts, so a marble on top of a full cup does too
+      g.rect(32, 33, 40, 34, { sensor: true, behavior: { type: 'goal' } }),
+    ],
+  },
 ];
 
 export const BY_ID = Object.fromEntries(CATALOG.map(e => [e.id, e]));
@@ -277,8 +331,8 @@ export const TRAY_ITEMS = CATALOG.flatMap(trayItemsOf);
 export const TRAY_GROUPS = [
   { id: 'track', name: 'Track', icon: 'track', ids: ['straight', 'ramp', 'steep', 'zigzag', 'stairs', 'tube'] },
   { id: 'curves', name: 'Curves', icon: 'curves', ids: ['curve', 'uturn', 'loop', 'funnel'] },
-  { id: 'movers', name: 'Movers', icon: 'movers', ids: ['escalator', 'lift', 'spinner', 'windmill', 'seesaw'] },
+  { id: 'movers', name: 'Movers', icon: 'movers', ids: ['conveyor', 'escalator', 'lift', 'spinner', 'windmill', 'seesaw'] },
   { id: 'music', name: 'Music', icon: 'music', ids: ['bell', 'xylo1', 'xylo2', 'xylo3'] },
-  { id: 'gadgets', name: 'Gadgets', icon: 'gadgets', ids: ['dropper', 'cannon', 'bumper', 'tramp', 'basket'] },
+  { id: 'gadgets', name: 'Gadgets', icon: 'gadgets', ids: ['dropper', 'gate', 'flipflop', 'cannon', 'bumper', 'tramp', 'basket', 'goal'] },
   { id: 'blocks', name: 'Blocks', icon: 'blocks', ids: ['block', 'half', 'peg'] },
 ].map(({ ids, ...group }) => ({ ...group, items: ids.flatMap(id => trayItemsOf(BY_ID[id])) }));
