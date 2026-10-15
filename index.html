@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Marble Run Builder</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="game">
+    <canvas id="playfield"></canvas>
+    <div id="toolbar">
+      <button id="btn-home" title="Pick a track">🏠</button>
+      <button id="btn-marble" title="Drop a marble">🔵</button>
+      <button id="btn-reset" title="Clear marbles">🧹</button>
+      <button id="btn-clear" title="Clear the board">🗑️</button>
+      <button id="btn-save" title="Save & load">💾</button>
+      <button id="btn-mute" title="Sound on/off">🔊</button>
+    </div>
+    <div id="tray"><div id="tray-items"></div><div id="tray-trash">🗑️ Drop here to remove</div></div>
+  </div>
+
+  <div id="splash" class="hidden">
+    <div class="splash-inner">
+      <h1 class="splash-title"><span>🔵</span> Marble Run Builder <span>🔴</span></h1>
+      <p class="splash-sub">Pick a track to play, or build your own!</p>
+      <div id="splash-grid"></div>
+    </div>
+  </div>
+
+  <div id="rotate-overlay">
+    <div class="rotate-card">
+      <div class="rotate-icon">📱</div>
+      <h1>Turn your iPad sideways!</h1>
+    </div>
+  </div>
+
+  <div id="save-dialog" class="dialog hidden">
+    <div class="dialog-card">
+      <div class="dialog-head">
+        <h2>My Marble Runs</h2>
+        <button id="dlg-close">✕</button>
+      </div>
+      <div id="slot-grid"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+
+  <script src="vendor/matter.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

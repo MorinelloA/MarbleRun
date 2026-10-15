@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "marblerun",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8321", "--directory", "C:\\Repos\\MarbleRun"],
+      "port": 8321
+    },
+    {
+      "name": "marblerun-alt",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8322", "--directory", "C:\\Repos\\MarbleRun"],
+      "port": 8322
+    }
+  ]
+}

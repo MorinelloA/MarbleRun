@@ -1,0 +1,33 @@
+// @ts-check
+// All game constants live here.
+
+export const GAME_W = 1133;   // logical game size (iPad mini landscape CSS px)
+export const GAME_H = 744;
+export const TRAY_H = 110;
+export const BOARD_W = GAME_W;
+export const BOARD_H = GAME_H - TRAY_H;   // 634 — playfield canvas height
+
+export const GRID = 64;
+export const COLS = 17;
+export const ROWS = 9;
+export const GRID_X = Math.floor((BOARD_W - COLS * GRID) / 2); // 22
+export const GRID_Y = BOARD_H - ROWS * GRID;                   // 58
+
+export const MARBLE_R = 11;
+export const MAX_MARBLES = 20;
+export const SPEED_CLAMP = 18;          // px per physics step
+export const PHYS_DT = 1000 / 120;      // fixed physics sub-step, ms
+export const MAX_SUBSTEPS = 4;
+
+export const MARBLE_COLORS = [
+  '#e63946', '#f4a300', '#2a9d8f', '#4361ee',
+  '#9b5de5', '#f15bb5', '#00b4d8', '#80b918',
+];
+
+// Audio voice budgets
+export const ROLL_VOICES = 8;
+export const IMPACT_VOICES = 10;
+export const CHIME_VOICES = 6;
+
+// Rendering
+export const MAX_DPR = 2;
