@@ -1,0 +1,22 @@
+{
+  "id": "zigzagfalls",
+  "seconds": 30,
+  "extra": 0,
+  "every": 1.5,
+  "traceHash": "24b62fb64ae721ebbfbc4625bf30e345c4f467de",
+  "totals": {
+    "marbles": 2,
+    "laps": 0,
+    "leaked": 0,
+    "culled": 0,
+    "maxStallS": 0.01,
+    "chimes": 4,
+    "hardHits": 7,
+    "launches": 0,
+    "cannonEnters": 0,
+    "sensorEnterEv": 2,
+    "sensorExitEv": 0,
+    "stuckSensorPairs": 0,
+    "nan": false
+  }
+}

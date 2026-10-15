@@ -88,6 +88,10 @@ export function checkExpect(preset, r) {
   if (e.noLeaks && t.leaked > 0) fails.push(`${t.leaked} leaked`);
   if (e.maxLeaks != null && t.leaked > e.maxLeaks) fails.push(`${t.leaked} leaked > ${e.maxLeaks}`);
   if (e.maxStallS != null && t.maxStallS > e.maxStallS) fails.push(`stalled ${t.maxStallS}s > ${e.maxStallS}s`);
+  if (e.minInBasket != null) {
+    const n = r.marbles.filter(m => m.final === 'basket').length;
+    if (n < e.minInBasket) fails.push(`${n} in a basket < ${e.minInBasket}`);
+  }
   if (t.cannonEnters && t.launches < t.cannonEnters) fails.push(`cannons fired ${t.launches}/${t.cannonEnters}`);
   if (t.stuckSensorPairs) fails.push(`${t.stuckSensorPairs} sensor exit(s) lost`);
   if (t.nan) fails.push('NaN positions');

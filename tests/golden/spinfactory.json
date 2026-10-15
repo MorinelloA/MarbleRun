@@ -1,0 +1,22 @@
+{
+  "id": "spinfactory",
+  "seconds": 40,
+  "extra": 6,
+  "every": 3,
+  "traceHash": "c43e88ebe35b3b8d05c9c7b26cd72e4bbef2d268",
+  "totals": {
+    "marbles": 8,
+    "laps": 0,
+    "leaked": 8,
+    "culled": 0,
+    "maxStallS": 0,
+    "chimes": 6,
+    "hardHits": 6,
+    "launches": 0,
+    "cannonEnters": 0,
+    "sensorEnterEv": 0,
+    "sensorExitEv": 0,
+    "stuckSensorPairs": 0,
+    "nan": false
+  }
+}

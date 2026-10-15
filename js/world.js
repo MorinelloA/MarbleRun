@@ -2,8 +2,12 @@
 // Matter.js engine, marble lifecycle, collision event fan-out.
 
 import {
-  BOARD_W, BOARD_H, MARBLE_R, MAX_MARBLES, SPEED_CLAMP, MARBLE_COLORS,
+  BOARD_W, BOARD_H, MARBLE_R, MAX_MARBLES, SPEED_CLAMP, MARBLE_COLORS, GRID, GRID_X, COLS,
 } from './config.js';
+
+// Matter gives a circle of radius 11 only 12 sides, and a 12-gon rolling on
+// a flat track bobs a third of a pixel per facet. 24 sides roll smoothly.
+const MARBLE_SIDES = 24;
 
 const { Engine, World, Bodies, Body, Events, Sleeping, Composite, Vector } = window.Matter;
 
@@ -41,14 +45,19 @@ const handlers = { impact: [], sensorEnter: [], sensorExit: [], chime: [], marbl
 export function on(type, fn) { handlers[type].push(fn); }
 function emit(type, ...args) { for (const fn of handlers[type]) fn(...args); }
 
-// ---- world bounds: closed floor + side walls just outside the frame ----
+// ---- world bounds: closed floor + side walls at the grid's edges ----
+// The walls stand at the outer grid lines, not the canvas edges: in the
+// ~22 px strips beyond the grid no piece can be placed, so a marble that
+// fell in there was lost.
 const WALL = 80;
+const LEFT = GRID_X;
+const RIGHT = GRID_X + COLS * GRID;
 World.add(engine.world, [
   Bodies.rectangle(BOARD_W / 2, BOARD_H + WALL / 2 - 6, BOARD_W + WALL * 2, WALL,
     { isStatic: true, label: 'floor', friction: 0.05 }),
-  Bodies.rectangle(-WALL / 2, BOARD_H / 2 - 400, WALL, BOARD_H + 1600,
+  Bodies.rectangle(LEFT - WALL / 2, BOARD_H / 2 - 400, WALL, BOARD_H + 1600,
     { isStatic: true, label: 'wall' }),
-  Bodies.rectangle(BOARD_W + WALL / 2, BOARD_H / 2 - 400, WALL, BOARD_H + 1600,
+  Bodies.rectangle(RIGHT + WALL / 2, BOARD_H / 2 - 400, WALL, BOARD_H + 1600,
     { isStatic: true, label: 'wall' }),
 ]);
 
@@ -56,7 +65,7 @@ let colorIdx = 0;
 
 export function spawnMarble(x, y) {
   if (marbles.length >= MAX_MARBLES) removeMarble(marbles[0]);
-  const b = Bodies.circle(x, y, MARBLE_R, {
+  const b = Bodies.polygon(x, y, MARBLE_SIDES, MARBLE_R, {
     restitution: 0.35,
     friction: 0.02,
     frictionAir: 0.0012,
@@ -109,7 +118,12 @@ function orientDir(d, piece) {
   return { x, y };
 }
 
+/** moving pieces whose swing is limited (seesaws), body -> max |angle| */
+const tiltLimited = new Map();
+
 export function addPieceBodies(piece) {
+  const maxTilt = piece.entry.dynamic?.maxTilt;
+  if (maxTilt && piece.dynamicBody) tiltLimited.set(piece.dynamicBody, maxTilt);
   for (const b of piece.bodies) {
     // loop exit gates live in their own collision category so individual
     // marbles can be made to pass through them (see the lap logic below)
@@ -127,6 +141,7 @@ export function addPieceBodies(piece) {
 }
 
 export function removePieceBodies(piece) {
+  if (piece.dynamicBody) tiltLimited.delete(piece.dynamicBody);
   for (const b of piece.bodies) World.remove(engine.world, b);
   if (piece.constraint) World.remove(engine.world, piece.constraint);
   wakeAllMarbles();
@@ -286,6 +301,13 @@ Events.on(engine, 'afterUpdate', () => {
     emit('chime', 'tramp', 9, l.piece);
   }
   launched.clear();
+  // a limited plank that reaches its stop stays there, with a small rebound
+  for (const [body, maxTilt] of tiltLimited) {
+    if (Math.abs(body.angle) > maxTilt) {
+      Body.setAngle(body, Math.sign(body.angle) * maxTilt);
+      Body.setAngularVelocity(body, -body.angularVelocity * 0.2);
+    }
+  }
   for (let i = marbles.length - 1; i >= 0; i--) {
     const b = marbles[i];
     // once clear of a lapped loop, gates turn solid again for this marble

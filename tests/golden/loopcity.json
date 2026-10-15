@@ -1,0 +1,22 @@
+{
+  "id": "loopcity",
+  "seconds": 40,
+  "extra": 0,
+  "every": 1.5,
+  "traceHash": "90dc4263c70f5c20d07fed71aafdba754161e4f1",
+  "totals": {
+    "marbles": 2,
+    "laps": 4,
+    "leaked": 2,
+    "culled": 0,
+    "maxStallS": 0,
+    "chimes": 3,
+    "hardHits": 5,
+    "launches": 0,
+    "cannonEnters": 0,
+    "sensorEnterEv": 0,
+    "sensorExitEv": 0,
+    "stuckSensorPairs": 0,
+    "nan": false
+  }
+}

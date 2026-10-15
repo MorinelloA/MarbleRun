@@ -213,7 +213,9 @@ export const CATALOG = [
   {
     id: 'seesaw', name: 'Seesaw', cells: [2, 1], color: '#43aa8b',
     rotatable: false,
-    dynamic: { pivot: [64, 34], frictionAir: 0.02, density: 0.0012 },
+    // maxTilt: the plank stops at about 26° either way, like a seesaw
+    // hitting the ground, instead of swinging round into a slide
+    dynamic: { pivot: [64, 34], frictionAir: 0.02, density: 0.0012, maxTilt: 0.45 },
     build: () => [g.rect(64, 34, 118, 10)],
   },
   {

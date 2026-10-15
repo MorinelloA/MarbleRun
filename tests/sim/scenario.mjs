@@ -1,7 +1,7 @@
 // Simulates one preset headlessly and prints a JSON report on stdout.
 //
 //   node tests/sim/scenario.mjs <presetId> [--seconds N] [--extra N]
-//        [--every S] [--seed N] [--svg FILE]
+//        [--every S] [--seed N] [--svg FILE] [--layout FILE]
 //
 // One preset per process: the game's modules hold the world, the board and
 // Matter's id counters as singletons, and the trace hash must not depend on
@@ -13,16 +13,20 @@
 // cannonEnters, unbalanced sensor enter/exit pairs).
 
 import { createHash } from 'node:crypto';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { loadGame } from './matter.mjs';
 
 const opts = parseArgs(process.argv.slice(2));
 const { Matter, config, world, board, actions, presets } = await loadGame();
 const { Query } = Matter;
-const { PHYS_DT, BOARD_W, BOARD_H, MAX_MARBLES } = config;
+const { PHYS_DT, BOARD_W, BOARD_H, MAX_MARBLES, GRID, GRID_Y, ROWS } = config;
 
-const preset = presets.PRESETS.find(p => p.id === opts.id);
+// --layout FILE runs a candidate layout ({id, pieces, spawn, expect}) instead
+// of a shipped preset, for tuning
+const preset = opts.layout
+  ? JSON.parse(readFileSync(opts.layout, 'utf8'))
+  : presets.PRESETS.find(p => p.id === opts.id);
 if (!preset) {
   console.error(`unknown preset: ${opts.id}`);
   process.exit(2);
@@ -148,7 +152,10 @@ function observe(s) {
 
     const onFloor = y > BOARD_H - 30;
     if (onFloor) m.everFloor = true;
-    if (b.speed < 0.05 && !onFloor && !insideBasket(x, y)) {
+    // resting on the bottom row (music bars, a pile of marbles there) is
+    // the end of a run, not a stall partway down the course
+    const finished = onFloor || y > GRID_Y + (ROWS - 1) * GRID || insideBasket(x, y);
+    if (b.speed < 0.05 && !finished) {
       m.still++;
       if (m.still > m.maxStill) m.maxStill = m.still;
     } else {
@@ -282,6 +289,7 @@ function parseArgs(argv) {
     else if (a === '--every') o.every = Number(argv[++i]);
     else if (a === '--seed') o.seed = Number(argv[++i]);
     else if (a === '--svg') o.svg = argv[++i];
+    else if (a === '--layout') o.layout = argv[++i];
     else if (!o.id) o.id = a;
   }
   return o;

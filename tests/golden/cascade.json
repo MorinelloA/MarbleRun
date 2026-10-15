@@ -1,0 +1,22 @@
+{
+  "id": "cascade",
+  "seconds": 30,
+  "extra": 0,
+  "every": 1.5,
+  "traceHash": "906f89bd078d1d1098cfcd6c57b314460e7d318e",
+  "totals": {
+    "marbles": 2,
+    "laps": 0,
+    "leaked": 2,
+    "culled": 0,
+    "maxStallS": 0.01,
+    "chimes": 3,
+    "hardHits": 3,
+    "launches": 0,
+    "cannonEnters": 0,
+    "sensorEnterEv": 1,
+    "sensorExitEv": 0,
+    "stuckSensorPairs": 0,
+    "nan": false
+  }
+}

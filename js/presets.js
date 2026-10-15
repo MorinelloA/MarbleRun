@@ -1,7 +1,17 @@
 // @ts-check
-// Five designed starter tracks for the splash screen. Each lists its
+// Six designed starter tracks for the splash screen. Each lists its
 // pieces plus a few marble spawn points so the run comes alive the
 // moment it loads.
+//
+// `expect` is checked by the headless harness (tests/sim/run.mjs --check):
+// what a run of the preset must do, so the cards keep their promises.
+//   seconds, extra, every  how long to run; extra marbles dropped every N s
+//   reach                  piece types that must be touched at least once
+//   reachAll / ignore      every piece must be touched, except those listed
+//   lapsEach / minLaps     loop laps per spawn marble / in total
+//   noLeaks                no marble may reach the floor or escape
+//   maxStallS              longest a marble may sit still mid-course
+//   minInBasket            marbles that must end the run in a basket
 
 export const PRESETS = [
   {
@@ -15,12 +25,11 @@ export const PRESETS = [
       { t: 'ramp', c: 3, r: 2 }, { t: 'ramp', c: 4, r: 3 },
       { t: 'zigzag', c: 5, r: 4 },
       { t: 'ramp', c: 4, r: 6, f: 1 }, { t: 'ramp', c: 3, r: 7, f: 1 },
-      { t: 'ramp', c: 2, r: 8, f: 1 },
-      { t: 'xylo3', c: 1, r: 8 }, { t: 'xylo1', c: 0, r: 8 },
-      { t: 'bell', c: 6, r: 6 },
-      { t: 'bumper', c: 8, r: 7 },
-      { t: 'basket', c: 10, r: 8 },
+      // the run comes down to the left: the bell sits where it lands, and
+      // the basket catches the bounce
+      { t: 'bell', c: 2, r: 8 }, { t: 'basket', c: 1, r: 8 }, { t: 'xylo1', c: 0, r: 8 },
     ],
+    expect: { seconds: 30, reachAll: true, maxStallS: 3 },
   },
   {
     id: 'zigzagfalls',
@@ -32,12 +41,12 @@ export const PRESETS = [
       { t: 'zigzag', c: 6, r: 0 },
       { t: 'zigzag', c: 4, r: 2, f: 1 },
       { t: 'zigzag', c: 6, r: 4 },
-      { t: 'zigzag', c: 4, r: 6, f: 1 },
-      { t: 'xylo1', c: 7, r: 8 }, { t: 'xylo2', c: 8, r: 8 }, { t: 'xylo3', c: 9, r: 8 },
-      { t: 'basket', c: 10, r: 8 },
-      { t: 'bell', c: 3, r: 4 },
-      { t: 'bumper', c: 11, r: 5 },
+      // the last zigzag lets marbles out on the left, onto a row of bars
+      // they roll across, then into the basket below the end
+      { t: 'xylo1', c: 5, r: 6 }, { t: 'xylo2', c: 4, r: 6 }, { t: 'xylo3', c: 3, r: 6 },
+      { t: 'basket', c: 2, r: 7 },
     ],
+    expect: { seconds: 30, reachAll: true, maxStallS: 3, minInBasket: 2 },
   },
   {
     id: 'loopcity',
@@ -51,19 +60,19 @@ export const PRESETS = [
       { t: 'ramp', c: 0, r: 0 }, { t: 'ramp', c: 1, r: 1 }, { t: 'ramp', c: 2, r: 2 },
       { t: 'ramp', c: 3, r: 3 }, { t: 'ramp', c: 4, r: 4 },
       { t: 'straight', c: 5, r: 5 }, { t: 'straight', c: 6, r: 5 },
-      // loops pass marbles through to the right after a lap, so they chain:
-      // each loop's ground row is its second row, level with the straights
-      { t: 'loop', c: 7, r: 4 },
-      { t: 'straight', c: 9, r: 5 },
-      { t: 'loop', c: 10, r: 4 },
-      { t: 'straight', c: 12, r: 5 },
-      // marbles launch off the last straight — bumper mid-flight, then the
-      // music row and basket catch them coming down on the right
-      { t: 'bumper', c: 14, r: 6 },
-      { t: 'bell', c: 12, r: 8 },
-      { t: 'xylo1', c: 13, r: 8 }, { t: 'xylo2', c: 14, r: 8 }, { t: 'xylo3', c: 15, r: 8 },
-      { t: 'basket', c: 16, r: 8 },
+      // back to back, so the first loop's powered floor hands marbles
+      // straight to the second (a plain straight between them let slow
+      // marbles coast to a stop)
+      { t: 'loop', c: 7, r: 4 }, { t: 'loop', c: 9, r: 4 },
+      { t: 'straight', c: 11, r: 5 }, { t: 'straight', c: 12, r: 5 },
+      // the block stops the fast exit; marbles drop past the bell onto
+      // the bars and into the basket
+      { t: 'block', c: 14, r: 5 },
+      { t: 'bell', c: 13, r: 7 },
+      { t: 'xylo1', c: 11, r: 8 }, { t: 'xylo2', c: 12, r: 8 }, { t: 'xylo3', c: 13, r: 8 },
+      { t: 'basket', c: 14, r: 8 },
     ],
+    expect: { seconds: 40, lapsEach: 2, reach: ['bell', 'xylo1', 'xylo2', 'xylo3', 'basket'], maxStallS: 3 },
   },
   {
     id: 'roundandround',
@@ -95,25 +104,40 @@ export const PRESETS = [
       { t: 'escalator', c: 7, r: 1, f: 1 },
       { t: 'straight', c: 6, r: 2 },
       { t: 'ramp', c: 5, r: 3, f: 1 },
+      // catchers for the rare shot that flies too far: over the top-left
+      // (back onto the cascade), over the tower (back onto its roof), and
+      // down beside the loop (instead of wedging against the lift)
+      { t: 'ramp', c: 0, r: 1 },
+      { t: 'ramp', c: 13, r: 0, f: 1 },
+      { t: 'ramp', c: 6, r: 3, f: 1 },
     ],
+    expect: {
+      seconds: 240, extra: 10, every: 1.5,
+      noLeaks: true, maxStallS: 6, minLaps: 200,
+      ignore: ['ramp@0,1', 'ramp@13,0f', 'ramp@6,3f'],
+    },
   },
   {
     id: 'musicmountain',
     name: 'Music Mountain',
     emoji: '🎵',
     blurb: 'Plinko pegs and chimes',
-    spawn: [[520, 15], [560, 40], [540, 70]],
+    spawn: [[502, 130], [500, 100]],
     pieces: [
-      { t: 'funnel', c: 7, r: 0 },
-      { t: 'peg', c: 6, r: 2 }, { t: 'peg', c: 8, r: 2 },
-      { t: 'peg', c: 5, r: 3 }, { t: 'peg', c: 7, r: 3 }, { t: 'peg', c: 9, r: 3 },
+      // a dropper, not a funnel: a funnel's throat sits on a cell edge,
+      // exactly between peg columns, so its marbles never touched a peg;
+      // the dropper's chute is centred over the top peg
+      { t: 'dropper', c: 7, r: 1 },
+      { t: 'peg', c: 7, r: 3 },
       { t: 'peg', c: 6, r: 4 }, { t: 'peg', c: 8, r: 4 },
-      { t: 'peg', c: 5, r: 5 }, { t: 'peg', c: 7, r: 5 }, { t: 'peg', c: 9, r: 5 },
-      { t: 'bell', c: 4, r: 6 }, { t: 'bell', c: 10, r: 6 },
+      { t: 'peg', c: 5, r: 5 }, { t: 'peg', c: 9, r: 5 },
+      { t: 'bell', c: 6, r: 6 }, { t: 'bell', c: 8, r: 6 },
+      { t: 'basket', c: 4, r: 8 },
       { t: 'xylo1', c: 5, r: 8 }, { t: 'xylo2', c: 6, r: 8 }, { t: 'xylo3', c: 7, r: 8 },
       { t: 'xylo2', c: 8, r: 8 }, { t: 'xylo1', c: 9, r: 8 },
-      { t: 'basket', c: 3, r: 8 }, { t: 'basket', c: 11, r: 8 },
+      { t: 'basket', c: 10, r: 8 },
     ],
+    expect: { seconds: 40, extra: 10, every: 2, reach: ['peg', 'bell', 'xylo1', 'xylo2', 'xylo3'], maxStallS: 3 },
   },
   {
     id: 'spinfactory',
@@ -125,13 +149,13 @@ export const PRESETS = [
       { t: 'ramp', c: 1, r: 0 }, { t: 'ramp', c: 2, r: 1 },
       { t: 'spinner', c: 3, r: 2 },
       { t: 'seesaw', c: 5, r: 5 },
-      { t: 'windmill', c: 8, r: 5 },
+      { t: 'windmill', c: 8, r: 6 },
       { t: 'spinner', c: 9, r: 6 },
-      { t: 'uturn', c: 1, r: 6 },
-      { t: 'tramp', c: 7, r: 8 },
-      { t: 'bumper', c: 12, r: 7 },
-      { t: 'bell', c: 11, r: 4 },
-      { t: 'basket', c: 14, r: 8 },
+      // two bouncers catch both ways a marble leaves the spinner
+      { t: 'tramp', c: 9, r: 8 }, { t: 'tramp', c: 10, r: 8 },
+      { t: 'bell', c: 12, r: 8 },
+      { t: 'bumper', c: 14, r: 8 },
     ],
+    expect: { seconds: 40, extra: 6, every: 3, reachAll: true, maxStallS: 3 },
   },
 ];

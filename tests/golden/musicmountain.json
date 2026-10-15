@@ -1,0 +1,22 @@
+{
+  "id": "musicmountain",
+  "seconds": 40,
+  "extra": 10,
+  "every": 2,
+  "traceHash": "65c98fed9d95cf2a959f26cf210c9ac70410606f",
+  "totals": {
+    "marbles": 12,
+    "laps": 0,
+    "leaked": 11,
+    "culled": 0,
+    "maxStallS": 0.2,
+    "chimes": 23,
+    "hardHits": 23,
+    "launches": 0,
+    "cannonEnters": 0,
+    "sensorEnterEv": 0,
+    "sensorExitEv": 0,
+    "stuckSensorPairs": 0,
+    "nan": false
+  }
+}
