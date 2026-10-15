@@ -3,11 +3,17 @@
 // board previews. A piece's art is drawn in its entry's own coordinates
 // under pieceMatrix, so one drawing serves every turn and mirror image.
 
-import { GRID, BOARD_W, BOARD_H, COLS, ROWS, GRID_X, GRID_Y, MARBLE_R, RS_MAX } from '../config.js';
+import {
+  GRID, BOARD_W, BOARD_H, COLS, ROWS, GRID_X, GRID_Y, MARBLE_R, RS_MAX, FLOOR_Y,
+} from '../config.js';
 import { Piece, pieceMatrix, transformPoint } from '../pieces/piece.js';
 import { board } from '../board.js';
 import { ART } from './pieces.js';
+import { knockColor } from './shapes.js';
 import * as theme from '../theme.js';
+
+/** Drawing state for a piece at rest: no time, the first marble next. */
+export const AT_REST = { t: 0, next: 0 };
 
 /** Board drawing order: top row first, left to right. */
 export function byCell(a, b) { return a.row - b.row || a.col - b.col; }
@@ -16,102 +22,139 @@ function pivotOf(piece) {
   return transformPoint(piece.entry, piece.entry.dynamic.pivot, piece.rot, piece.flip);
 }
 
-/**
- * A piece at rest with its footprint at (ox, oy), by default where it sits
- * on the board. Moving pieces show their resting angle, as when placed.
- * @param {CanvasRenderingContext2D} g
- */
-export function drawPiece(g, piece, ox = piece.x, oy = piece.y, t = 0) {
-  g.save();
+/** Move g into a piece's own coordinates, its footprint at (ox, oy). */
+function enter(g, piece, ox, oy) {
   g.translate(ox, oy);
-  const angle0 = piece.entry.dynamic?.angle0;
-  if (angle0) {
-    const [px, py] = pivotOf(piece);
-    g.translate(px, py);
-    g.rotate(angle0);
-    g.translate(-px, -py);
-  }
   g.transform(...pieceMatrix(piece.entry, piece.rot, piece.flip));
-  ART[piece.entry.id].draw(g, piece, t);
-  g.restore();
 }
 
-/** The per-frame layer of an overlay piece. @param {CanvasRenderingContext2D} g */
-export function drawOverlay(g, piece, t) {
-  g.save();
-  g.translate(piece.x, piece.y);
-  g.transform(...pieceMatrix(piece.entry, piece.rot, piece.flip));
-  ART[piece.entry.id].overlay(g, piece, t);
-  g.restore();
-}
-
-/** A moving piece, following its physics body. The body's position is the
- *  pivot (a catalog test holds every moving piece to that).
- *  @param {CanvasRenderingContext2D} g */
-export function drawDynamic(g, piece, t) {
-  const b = piece.dynamicBody;
+/** Into a moving piece's own coordinates, turned by `angle` about its
+ *  pivot (turned in board space, as the physics turns it). */
+function enterTurned(g, piece, ox, oy, angle) {
   const [px, py] = pivotOf(piece);
-  g.save();
-  g.translate(b.position.x, b.position.y);
-  g.rotate(b.angle);
+  g.translate(ox + px, oy + py);
+  g.rotate(angle);
   g.translate(-px, -py);
   g.transform(...pieceMatrix(piece.entry, piece.rot, piece.flip));
-  ART[piece.entry.id].draw(g, piece, t);
+}
+
+/** The part of a placed piece that goes in the cached board layer.
+ *  @param {CanvasRenderingContext2D} g */
+export function drawStatic(g, piece) {
+  const art = ART[piece.entry.id];
+  const paint = art.mode === 'dynamic' ? art.base : art.mode === 'live' ? null : art.draw;
+  if (!paint) return;
+  g.save();
+  enter(g, piece, piece.x, piece.y);
+  paint(g, piece, AT_REST);
   g.restore();
 }
 
-/** @param {CanvasRenderingContext2D} g */
+/** The part of a placed piece drawn every frame. @param {CanvasRenderingContext2D} g */
+export function drawLive(g, piece, env) {
+  const art = ART[piece.entry.id];
+  g.save();
+  if (art.mode === 'dynamic') {
+    const b = piece.dynamicBody;
+    const [px, py] = pivotOf(piece);
+    // the body's position is the pivot (a catalog test holds every moving
+    // piece to that)
+    enterTurned(g, piece, b.position.x - px, b.position.y - py, b.angle);
+    art.draw(g, piece, env);
+  } else {
+    enter(g, piece, piece.x, piece.y);
+    if (art.mode === 'overlay') art.overlay(g, piece, env);
+    else if (art.mode === 'live') art.draw(g, piece, env);
+  }
+  g.restore();
+}
+
+/**
+ * A whole piece at rest, its footprint at (ox, oy) (by default where it
+ * sits on the board): tray icons, previews, the drag ghost. Moving pieces
+ * show the angle they take when placed.
+ * @param {CanvasRenderingContext2D} g
+ */
+export function drawPiece(g, piece, ox = piece.x, oy = piece.y, env = AT_REST) {
+  const art = ART[piece.entry.id];
+  g.save();
+  enter(g, piece, ox, oy);
+  if (art.mode === 'dynamic') {
+    if (art.base) art.base(g, piece, env);
+  } else {
+    art.draw(g, piece, env);
+    if (art.overlay) art.overlay(g, piece, env);
+  }
+  g.restore();
+  if (art.mode === 'dynamic') {
+    g.save();
+    enterTurned(g, piece, ox, oy, piece.entry.dynamic.angle0 || 0);
+    art.draw(g, piece, env);
+    g.restore();
+  }
+}
+
+/** A marble as the toy draws one: fill, knockout, glint. @param {CanvasRenderingContext2D} g */
 export function drawMarble(g, m) {
   const { x, y } = m.position;
   g.beginPath();
   g.arc(x, y, MARBLE_R, 0, Math.PI * 2);
-  g.fillStyle = m.plugin.color;
+  g.fillStyle = theme.marble(m.plugin.ci || 0);
   g.fill();
-  g.strokeStyle = 'rgba(0,0,0,0.25)';
-  g.lineWidth = 1.5;
+  g.lineWidth = 3;
+  g.strokeStyle = knockColor(g);
   g.stroke();
   g.beginPath();
-  g.arc(x - 4, y - 4, 3.5, 0, Math.PI * 2);
-  g.fillStyle = 'rgba(255,255,255,0.8)';
+  g.arc(x - MARBLE_R * 0.35, y - MARBLE_R * 0.35, MARBLE_R * 0.28, 0, Math.PI * 2);
+  g.fillStyle = theme.current().shine;
   g.fill();
 }
 
-/** @param {CanvasRenderingContext2D} g */
+/** The piece being dragged, and once it snaps, a dashed footprint: lime
+ *  where it fits, red where it doesn't. @param {CanvasRenderingContext2D} g */
 export function drawGhost(g, ghost) {
-  g.globalAlpha = 0.65;
-  drawPiece(g, ghost.piece, ghost.x, ghost.y);
-  if (ghost.snapped) {
-    const th = theme.current();
-    g.globalAlpha = 0.3;
-    g.fillStyle = ghost.valid ? th.ghostOk : th.ghostBad;
-    g.fillRect(ghost.x, ghost.y, ghost.piece.fw * GRID, ghost.piece.fh * GRID);
-  }
+  const th = theme.current();
+  const { piece } = ghost;
+  g.globalAlpha = ghost.snapped && !ghost.valid ? 0.45 : 0.8;
+  drawPiece(g, piece, ghost.x, ghost.y);
   g.globalAlpha = 1;
+  if (!ghost.snapped) return;
+  g.save();
+  g.setLineDash([6, 5]);
+  g.lineWidth = 2;
+  g.strokeStyle = ghost.valid ? th.ghostOk : th.ghostBad;
+  g.beginPath();
+  g.roundRect(ghost.x + 2, ghost.y + 2, piece.fw * GRID - 4, piece.fh * GRID - 4, 10);
+  g.stroke();
+  g.restore();
 }
 
 let gridDots = null;
 
-/** Sky and grid dots, in board coordinates. @param {CanvasRenderingContext2D} g */
-export function drawBoardBackground(g, { grid = true } = {}) {
-  const th = theme.current();
-  const sky = g.createLinearGradient(0, 0, 0, BOARD_H);
-  sky.addColorStop(0, th.skyTop);
-  sky.addColorStop(1, th.skyBottom);
-  g.fillStyle = sky;
-  g.fillRect(0, 0, BOARD_W, BOARD_H);
-  if (!grid) return;
-  if (!gridDots) {
-    gridDots = new Path2D();
-    for (let c = 0; c <= COLS; c++) {
-      for (let r = 0; r <= ROWS; r++) {
-        const x = GRID_X + c * GRID, y = GRID_Y + r * GRID;
-        gridDots.moveTo(x + 2, y);
-        gridDots.arc(x, y, 2, 0, Math.PI * 2);
-      }
+function dotsPath() {
+  const path = new Path2D();
+  for (let c = 0; c <= COLS; c++) {
+    for (let r = 0; r <= ROWS; r++) {
+      const x = GRID_X + c * GRID, y = GRID_Y + r * GRID;
+      path.moveTo(x + 1.75, y);
+      path.arc(x, y, 1.75, 0, Math.PI * 2);
     }
   }
-  g.fillStyle = th.gridDot;
-  g.fill(gridDots);
+  return path;
+}
+
+/** The stage, grid dots and the floor, in board coordinates. @param {CanvasRenderingContext2D} g */
+export function drawBoardBackground(g, { grid = true } = {}) {
+  const th = theme.current();
+  g.fillStyle = th.stage;
+  g.fillRect(0, 0, BOARD_W, BOARD_H);
+  if (grid) {
+    gridDots ||= dotsPath();
+    g.fillStyle = th.dot;
+    g.fill(gridDots);
+  }
+  g.fillStyle = th.floor;
+  g.fillRect(0, FLOOR_Y, BOARD_W, BOARD_H - FLOOR_Y);
 }
 
 /**
@@ -127,15 +170,10 @@ export function paintIcon(c, entry, flip, size, scale) {
   c.style.height = `${size}px`;
   const g = c.getContext('2d');
   const piece = new Piece(entry, 0, 0, 0, flip);
-  const k = px / (Math.max(piece.fw, piece.fh) * GRID);
+  // a little margin, so outlines and caps that reach past the footprint fit
+  const k = (px * 0.92) / (Math.max(piece.fw, piece.fh) * GRID);
   g.setTransform(k, 0, 0, k, (px - piece.fw * GRID * k) / 2, (px - piece.fh * GRID * k) / 2);
   drawPiece(g, piece, 0, 0);
-}
-
-export function renderIcon(entry, flip, size, scale) {
-  const c = document.createElement('canvas');
-  paintIcon(c, entry, flip, size, scale);
-  return c;
 }
 
 /** Canvas pixels per CSS px for pictures outside the scaled game stage. */

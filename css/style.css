@@ -54,7 +54,7 @@ html, body {
   touch-action: none;
 }
 #toolbar button:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.15); }
-#toolbar button.armed { background: #ff6b6b; }
+#toolbar button.armed { background: #e63946; }
 #toolbar button.muted { opacity: 0.45; }
 #toolbar button.inactive { opacity: 0.4; }
 #btn-undo, #btn-redo { font-size: 30px; color: #2d4a75; }
@@ -86,7 +86,7 @@ html, body {
   width: 88px; height: 88px;
   border: none;
   border-radius: 14px;
-  background: #f6f9ff;
+  background: #0B0B0E; /* the stage: the icons' outlines are knocked out in it */
   box-shadow: 0 3px 0 rgba(0,0,0,0.25);
   display: flex;
   flex-direction: column;
@@ -101,7 +101,7 @@ html, body {
 .tray-item canvas { pointer-events: none; }
 .tray-item span {
   font-size: 11px;
-  color: #445;
+  color: #A9A8A3;
   pointer-events: none;
   white-space: nowrap;
 }
@@ -315,7 +315,7 @@ html, body {
   font-size: 15px;
   cursor: pointer;
 }
-.slot-card .slot-del.armed { background: #ff6b6b; color: #fff; }
+.slot-card .slot-del.armed { background: #e63946; color: #fff; }
 .slot-card.new-slot { border-style: dashed; color: #2d4a75; }
 
 /* ---- toast ---- */

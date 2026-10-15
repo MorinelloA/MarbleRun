@@ -8,7 +8,7 @@
 
 import { BOARD_W, BOARD_H } from './config.js';
 import { board } from './board.js';
-import { marbles } from './world.js';
+import { marbles, nextMarbleIndex } from './world.js';
 import { view } from './viewport.js';
 import { ART, MODES } from './art/pieces.js';
 import * as draw from './art/draw.js';
@@ -54,15 +54,17 @@ export function invalidateStatic() {
 
 function paintStatic() {
   for (const m of MODES) lists[m].length = 0;
-  for (const piece of [...board.pieces].sort(draw.byCell)) lists[ART[piece.entry.id].mode].push(piece);
+  const sorted = [...board.pieces].sort(draw.byCell);
+  for (const piece of sorted) lists[ART[piece.entry.id].mode].push(piece);
 
   sctx.setTransform(staticLayer.width / BOARD_W, 0, 0, staticLayer.height / BOARD_H, 0, 0);
   draw.drawBoardBackground(sctx);
-  for (const piece of lists.static) draw.drawPiece(sctx, piece);
-  for (const piece of lists.overlay) draw.drawPiece(sctx, piece);
+  for (const piece of sorted) draw.drawStatic(sctx, piece);
   staticDirty = false;
   stats.staticRebuilds++;
 }
+
+const env = { t: 0, next: 0 };
 
 /**
  * @param {null | {piece: any, x: number, y: number, snapped: boolean, valid: boolean}} ghost
@@ -84,11 +86,13 @@ export function frame(ghost, hud, t = 0) {
   lap('static');
 
   ctx.setTransform(canvas.width / BOARD_W, 0, 0, canvas.height / BOARD_H, 0, 0);
-  for (const piece of lists.overlay) draw.drawOverlay(ctx, piece, t);
+  env.t = t;
+  env.next = nextMarbleIndex();
+  for (const piece of lists.overlay) draw.drawLive(ctx, piece, env);
   lap('overlay');
-  for (const piece of lists.live) draw.drawPiece(ctx, piece, piece.x, piece.y, t);
+  for (const piece of lists.live) draw.drawLive(ctx, piece, env);
   lap('live');
-  for (const piece of lists.dynamic) draw.drawDynamic(ctx, piece, t);
+  for (const piece of lists.dynamic) draw.drawLive(ctx, piece, env);
   lap('dynamic');
   for (const m of marbles) draw.drawMarble(ctx, m);
   lap('marbles');

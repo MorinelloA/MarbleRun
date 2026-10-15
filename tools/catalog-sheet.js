@@ -33,7 +33,7 @@ function drawOutlines(g, piece, ox, oy) {
   for (const body of piece.buildBodies()) {
     const parts = body.parts.length > 1 ? body.parts.slice(1) : body.parts;
     for (const part of parts) {
-      g.strokeStyle = part.isSensor ? '#00b4d8' : '#80b918';
+      g.strokeStyle = part.isSensor ? '#00b4d8' : 'rgba(255, 255, 255, 0.85)';
       g.setLineDash(part.isSensor ? [3, 3] : []);
       g.beginPath();
       part.vertices.forEach((v, i) => (i ? g.lineTo(v.x, v.y) : g.moveTo(v.x, v.y)));
@@ -77,12 +77,12 @@ CATALOG.forEach((entry, row) => {
     const piece = new Piece(entry, 0, 0, rot, flip);
     const ox = x + PAD, oy = y + PAD;
     g.setLineDash([4, 4]);
-    g.strokeStyle = 'rgba(0,0,0,0.25)';
+    g.strokeStyle = '#3d3d44';
     g.strokeRect(ox, oy, piece.fw * GRID, piece.fh * GRID);
     g.setLineDash([]);
     drawPiece(g, piece, ox, oy);
     if (outlines) drawOutlines(g, piece, ox, oy);
-    g.fillStyle = 'rgba(0,0,0,0.55)';
+    g.fillStyle = '#a9a8a3';
     g.fillText(`r${rot}${flip ? ' m' : ''}`, x + 4, y + CELL - 8);
   });
 });

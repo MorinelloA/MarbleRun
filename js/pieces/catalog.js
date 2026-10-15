@@ -3,7 +3,9 @@
 // piece.js turns it into Matter bodies, and js/art/ draws the same parts.
 //
 // Entry shape:
-//   id, name, cells:[w,h], color,
+//   id, name, cells:[w,h],
+//   role -> what the piece is for (track, mover, bounce...); the art
+//     colours it by role (see theme.js)
 //   build(g) -> part descriptors in piece-local coords (see geometry.js);
 //     a part's opts.behavior makes it do something to marbles it touches
 //     (see behaviors.js): push, launch, boost, gate, chime, bounce, sensor
@@ -13,7 +15,6 @@
 //     flipped twin in the tray; only these can be mirrored)
 //   spawner: {x, y} -> marbles from the toolbar drop from here
 //   loop: {center, apexRadius, exitWindow} -> loop lap tracking
-//   decor(ctx) -> optional extra painting in piece-local space
 
 import * as g from './geometry.js';
 
@@ -21,7 +22,7 @@ const T = 12; // standard track thickness
 
 export const CATALOG = [
   {
-    id: 'dropper', name: 'Dropper', cells: [1, 1], color: '#8d99ae',
+    id: 'dropper', name: 'Dropper', cells: [1, 1], role: 'dropper',
     rotatable: false,
     spawner: { x: 32, y: 30 },
     // marks the course start: when any dropper is on the board, the marble
@@ -31,32 +32,24 @@ export const CATALOG = [
       g.rect(14, 40, 8, 48),
       g.rect(50, 40, 8, 48),
     ],
-    decor(ctx) {
-      ctx.fillStyle = '#5c6672';
-      ctx.beginPath();
-      ctx.moveTo(6, 8); ctx.lineTo(58, 8); ctx.lineTo(46, 18); ctx.lineTo(18, 18);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#e63946';
-      ctx.beginPath(); ctx.arc(32, 28, 8, 0, Math.PI * 2); ctx.fill();
-    },
   },
   {
-    id: 'straight', name: 'Track', cells: [1, 1], color: '#ff8f3f',
+    id: 'straight', name: 'Track', cells: [1, 1], role: 'track',
     rotatable: true,
     build: () => [g.bar(0, 52, 64, 52, T)],
   },
   {
-    id: 'ramp', name: 'Ramp', cells: [1, 1], color: '#ffb43f',
+    id: 'ramp', name: 'Ramp', cells: [1, 1], role: 'ramp',
     rotatable: true, hasMirror: true,
     build: () => [g.bar(0, 12, 64, 52, T)],
   },
   {
-    id: 'steep', name: 'Steep', cells: [1, 2], color: '#ff6b6b',
+    id: 'steep', name: 'Steep', cells: [1, 2], role: 'steep',
     rotatable: true, hasMirror: true,
     build: () => [g.bar(0, 8, 64, 116, T)],
   },
   {
-    id: 'zigzag', name: 'Zigzag', cells: [2, 2], color: '#4cc9f0',
+    id: 'zigzag', name: 'Zigzag', cells: [2, 2], role: 'ramp',
     rotatable: true, hasMirror: true,
     build: () => [
       g.bar(0, 14, 80, 37, T),       // upper ramp ends short of the wall
@@ -65,7 +58,7 @@ export const CATALOG = [
     ],
   },
   {
-    id: 'curve', name: 'Curve', cells: [1, 1], color: '#43aa8b',
+    id: 'curve', name: 'Curve', cells: [1, 1], role: 'curve',
     rotatable: true, hasMirror: true,
     // quarter-pipe: catches a falling marble and sends it rightward.
     // Arcs are thick (fast marbles tunnel through 12px segments) and
@@ -74,13 +67,13 @@ export const CATALOG = [
     build: () => g.arcChain(64, 0, 54, Math.PI, Math.PI / 2, 7, 16, { friction: 0.001 }),
   },
   {
-    id: 'uturn', name: 'U-Turn', cells: [2, 2], color: '#90be6d',
+    id: 'uturn', name: 'U-Turn', cells: [2, 2], role: 'curve',
     rotatable: true,
     // half-pipe bowl — marbles swing back and forth
     build: () => g.arcChain(64, 30, 56, Math.PI, 0, 12, 16, { friction: 0.001 }),
   },
   {
-    id: 'funnel', name: 'Funnel', cells: [2, 2], color: '#f9c74f',
+    id: 'funnel', name: 'Funnel', cells: [2, 2], role: 'curve',
     rotatable: false,
     build: () => [
       g.bar(4, 8, 47, 92, T, { friction: 0.005 }),   // slick walls so marbles
@@ -91,12 +84,12 @@ export const CATALOG = [
     ],
   },
   {
-    id: 'tube', name: 'Tube', cells: [1, 2], color: '#7d8fb3',
+    id: 'tube', name: 'Tube', cells: [1, 2], role: 'structure',
     rotatable: true, rotations: 2, // symmetric: half a turn looks the same
     build: () => [g.rect(8, 64, 16, 128), g.rect(56, 64, 16, 128)],
   },
   {
-    id: 'loop', name: 'Loop', cells: [2, 2], color: '#f94144',
+    id: 'loop', name: 'Loop', cells: [2, 2], role: 'curve',
     rotatable: false,
     // a marble inside apexRadius of the centre, past the top on the
     // upper-left side, has lapped: the gate opens for it until it is
@@ -126,7 +119,7 @@ export const CATALOG = [
     ],
   },
   {
-    id: 'escalator', name: 'Escalator', cells: [2, 2], color: '#38b000',
+    id: 'escalator', name: 'Escalator', cells: [2, 2], role: 'mover',
     rotatable: false, hasMirror: true,
     // conveyor ramp: carries marbles from the bottom-left corner up to the
     // top-right, against gravity. Entry is at bottom-row track height; the
@@ -134,20 +127,9 @@ export const CATALOG = [
     build: () => [
       g.bar(0, 116, 128, 12, T, { behavior: { type: 'push', dir: [0.78, -0.63] }, friction: 0.005 }),
     ],
-    decor(ctx) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-      ctx.lineWidth = 3;
-      for (let i = 1; i <= 7; i++) {
-        const t = i / 8;
-        const x = t * 128, y = 116 - t * 104;
-        ctx.beginPath();
-        ctx.moveTo(x - 4, y - 3); ctx.lineTo(x + 4, y + 3);
-        ctx.stroke();
-      }
-    },
   },
   {
-    id: 'lift', name: 'Lift', cells: [1, 2], color: '#f15bb5',
+    id: 'lift', name: 'Lift', cells: [1, 2], role: 'mover',
     rotatable: false, hasMirror: true,
     // vacuum elevator: marbles roll in the bottom-left doorway at track
     // height, the shaft field floats them up, and the sloped cap slides
@@ -175,18 +157,9 @@ export const CATALOG = [
       // marble tucked under the wall can't be pinned against its underside
       g.rect(45, 62, 38, 108, { sensor: true, behavior: { type: 'push', dir: [0, -1] } }),
     ],
-    decor(ctx) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-      ctx.lineWidth = 3;
-      for (const y of [96, 74, 52]) {
-        ctx.beginPath();
-        ctx.moveTo(26, y); ctx.lineTo(32, y - 7); ctx.lineTo(38, y);
-        ctx.stroke();
-      }
-    },
   },
   {
-    id: 'cannon', name: 'Cannon', cells: [1, 1], color: '#495057',
+    id: 'cannon', name: 'Cannon', cells: [1, 1], role: 'launch',
     rotatable: false, hasMirror: true,
     // catch bowl + launcher: any marble that falls in gets fired high
     // toward the upper right (launch sets an absolute velocity)
@@ -195,15 +168,9 @@ export const CATALOG = [
       g.bar(38, 46, 64, 20, 10),
       g.circle(32, 46, 8, { sensor: true, behavior: { type: 'launch', vel: [4, -10.5] } }),
     ],
-    decor(ctx) {
-      ctx.fillStyle = '#212529';
-      ctx.beginPath(); ctx.arc(32, 46, 7, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ffd166';
-      ctx.beginPath(); ctx.arc(32, 46, 3, 0, Math.PI * 2); ctx.fill();
-    },
   },
   {
-    id: 'stairs', name: 'Stairs', cells: [2, 2], color: '#9b5de5',
+    id: 'stairs', name: 'Stairs', cells: [2, 2], role: 'track',
     rotatable: true, hasMirror: true,
     build: () => [
       g.rect(17, 38, 36, T),
@@ -213,7 +180,7 @@ export const CATALOG = [
     ],
   },
   {
-    id: 'spinner', name: 'Spinner', cells: [2, 2], color: '#f3722c',
+    id: 'spinner', name: 'Spinner', cells: [2, 2], role: 'spinner',
     rotatable: false,
     // a 2-arm propeller: a 4-arm cross cradles marbles in the V between
     // its upper arms, but a single bar always tips and lets them through.
@@ -222,7 +189,7 @@ export const CATALOG = [
     build: () => [g.rect(64, 64, 116, T), g.circle(64, 64, 12)],
   },
   {
-    id: 'seesaw', name: 'Seesaw', cells: [2, 1], color: '#43aa8b',
+    id: 'seesaw', name: 'Seesaw', cells: [2, 1], role: 'spinner',
     rotatable: false,
     // maxTilt: the plank stops at about 26° either way, like a seesaw
     // hitting the ground, instead of swinging round into a slide
@@ -230,67 +197,55 @@ export const CATALOG = [
     build: () => [g.rect(64, 34, 118, 10)],
   },
   {
-    id: 'bumper', name: 'Bumper', cells: [1, 1], color: '#e63946',
+    id: 'bumper', name: 'Bumper', cells: [1, 1], role: 'bounce',
     rotatable: false,
     build: () => [g.circle(32, 32, 20, { restitution: 1.3, behavior: { type: 'bounce', sound: 'bumper' } })],
-    decor(ctx) {
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(32, 32, 9, 0, Math.PI * 2); ctx.fill();
-    },
   },
   {
-    id: 'tramp', name: 'Bouncer', cells: [1, 1], color: '#06d6a0',
+    id: 'tramp', name: 'Bouncer', cells: [1, 1], role: 'bounce',
     rotatable: true,
     build: () => [g.rect(32, 56, 56, T, { restitution: 1.35, behavior: { type: 'bounce', sound: 'tramp' } })],
-    decor(ctx) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(10, 51); ctx.lineTo(54, 51); ctx.stroke();
-    },
   },
   {
-    id: 'bell', name: 'Bell', cells: [1, 1], color: '#ffd166',
+    id: 'bell', name: 'Bell', cells: [1, 1], role: 'bell',
     rotatable: false,
     build: () => [
       g.circle(32, 28, 16, { behavior: { type: 'chime', note: '*' } }),
-      g.rect(32, 52, 8, 26, { color: '#c9a04d' }),
+      g.rect(32, 52, 8, 26), // post
     ],
-    decor(ctx) {
-      ctx.fillStyle = '#8d6a1f';
-      ctx.beginPath(); ctx.arc(32, 40, 4, 0, Math.PI * 2); ctx.fill();
-    },
   },
   {
-    id: 'xylo1', name: 'Ding E', cells: [1, 1], color: '#ef476f',
+    id: 'xylo1', name: 'Ding E', cells: [1, 1], role: 'bar',
     rotatable: true,
     build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime', note: '659.25' } })],
   },
   {
-    id: 'xylo2', name: 'Ding G', cells: [1, 1], color: '#ffd166',
+    id: 'xylo2', name: 'Ding G', cells: [1, 1], role: 'bar',
     rotatable: true,
     build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime', note: '783.99' } })],
   },
   {
-    id: 'xylo3', name: 'Ding A', cells: [1, 1], color: '#06d6a0',
+    id: 'xylo3', name: 'Ding A', cells: [1, 1], role: 'bar',
     rotatable: true,
     build: () => [g.rect(32, 54, 58, 10, { behavior: { type: 'chime', note: '880' } })],
   },
   {
-    id: 'peg', name: 'Peg', cells: [1, 1], color: '#8d99ae',
+    id: 'peg', name: 'Peg', cells: [1, 1], role: 'structure',
     rotatable: false,
     build: () => [g.circle(32, 32, 8)],
   },
   {
-    id: 'block', name: 'Block', cells: [1, 1], color: '#b5838d',
+    id: 'block', name: 'Block', cells: [1, 1], role: 'structure',
     rotatable: false,
     build: () => [g.rect(32, 32, 64, 64)],
   },
   {
-    id: 'half', name: 'Half', cells: [1, 1], color: '#b5838d',
+    id: 'half', name: 'Half', cells: [1, 1], role: 'structure',
     rotatable: true,
     build: () => [g.rect(32, 48, 64, 32)],
   },
   {
-    id: 'basket', name: 'Basket', cells: [1, 1], color: '#a98467',
+    id: 'basket', name: 'Basket', cells: [1, 1], role: 'basket',
     rotatable: false,
     build: () => [
       g.rect(32, 58, 60, T),
@@ -300,7 +255,7 @@ export const CATALOG = [
     ],
   },
   {
-    id: 'windmill', name: 'Windmill', cells: [1, 1], color: '#00b4d8',
+    id: 'windmill', name: 'Windmill', cells: [1, 1], role: 'spinner',
     rotatable: false,
     dynamic: { pivot: [32, 32], frictionAir: 0.01, density: 0.0005, angle0: Math.PI / 5 },
     build: () => [g.rect(32, 32, 56, 8), g.circle(32, 32, 8)],

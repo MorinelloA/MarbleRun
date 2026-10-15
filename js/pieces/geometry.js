@@ -36,8 +36,10 @@ export function bar(x1, y1, x2, y2, thickness = 12, opts = {}) {
 /** Approximate an arc with short bars. Center (cx,cy), radius to the
  *  rolling surface; the bar thickness extends outward from the surface.
  *  Angles in radians, standard screen orientation (y down, 0 = +x axis,
- *  positive = clockwise on screen). */
+ *  positive = clockwise on screen). Every bar carries the same `arc`, so
+ *  the art can draw the chain as one smooth band (physics ignores it). */
 export function arcChain(cx, cy, radius, a0, a1, segments = 8, thickness = 12, opts = {}) {
+  const arc = { cx, cy, r: radius, t: thickness, a0, a1 };
   const parts = [];
   const step = (a1 - a0) / segments;
   for (let i = 0; i < segments; i++) {
@@ -52,7 +54,7 @@ export function arcChain(cx, cy, radius, a0, a1, segments = 8, thickness = 12, o
     const y = cy + Math.sin(mid) * r;
     // bar runs tangent to the arc
     const a = mid + Math.PI / 2;
-    parts.push({ kind: 'rect', x, y, w: chord, h: thickness, a, opts });
+    parts.push({ kind: 'rect', x, y, w: chord, h: thickness, a, opts, arc });
   }
   return parts;
 }

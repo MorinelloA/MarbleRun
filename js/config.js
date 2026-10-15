@@ -21,11 +21,7 @@ export const SPEED_CLAMP = 18;
 export const PHYS_DT = 1000 / 120;      // fixed physics sub-step, ms
 export const MAX_SUBSTEPS = 4;
 export const IMPACT_MIN_SPEED = 2.2;    // relative speed below which a hit is silent
-
-export const MARBLE_COLORS = [
-  '#e63946', '#f4a300', '#2a9d8f', '#4361ee',
-  '#9b5de5', '#f15bb5', '#00b4d8', '#80b918',
-];
+export const FLOOR_Y = BOARD_H - 6;     // top of the physics floor
 
 // Audio voice budgets
 export const ROLL_VOICES = 8;

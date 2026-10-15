@@ -3,8 +3,8 @@
 // do to marbles (conveyors, cannons, loop gates) lives in behaviors.js.
 
 import {
-  BOARD_W, BOARD_H, MARBLE_R, MAX_MARBLES, SPEED_CLAMP, MARBLE_COLORS, GRID, GRID_X, COLS,
-  IMPACT_MIN_SPEED,
+  BOARD_W, BOARD_H, MARBLE_R, MAX_MARBLES, SPEED_CLAMP, GRID, GRID_X, COLS,
+  IMPACT_MIN_SPEED, FLOOR_Y,
 } from './config.js';
 import * as behaviors from './behaviors.js';
 
@@ -57,7 +57,7 @@ const WALL = 80;
 const LEFT = GRID_X;
 const RIGHT = GRID_X + COLS * GRID;
 World.add(engine.world, [
-  Bodies.rectangle(BOARD_W / 2, BOARD_H + WALL / 2 - 6, BOARD_W + WALL * 2, WALL,
+  Bodies.rectangle(BOARD_W / 2, FLOOR_Y + WALL / 2, BOARD_W + WALL * 2, WALL,
     { isStatic: true, label: 'floor', friction: 0.05 }),
   Bodies.rectangle(LEFT - WALL / 2, BOARD_H / 2 - 400, WALL, BOARD_H + 1600,
     { isStatic: true, label: 'wall' }),
@@ -66,6 +66,9 @@ World.add(engine.world, [
 ]);
 
 let colorIdx = 0;
+
+/** Colour index the next marble will get (the theme maps it to a colour). */
+export function nextMarbleIndex() { return colorIdx; }
 
 export function spawnMarble(x, y) {
   if (marbles.length >= MAX_MARBLES) removeMarble(marbles[0]);
@@ -77,7 +80,7 @@ export function spawnMarble(x, y) {
     density: 0.002,
     label: 'marble',
   });
-  b.plugin.color = MARBLE_COLORS[colorIdx++ % MARBLE_COLORS.length];
+  b.plugin.ci = colorIdx++;
   marbles.push(b);
   World.add(engine.world, b);
   return b;
