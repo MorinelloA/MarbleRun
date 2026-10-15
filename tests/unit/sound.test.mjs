@@ -90,6 +90,19 @@ test("the rumble's loop has no seam to tick at", () => {
   assert.ok(Math.abs(Math.sqrt(sum / d.length) - 1) < 1e-3, 'unit RMS');
 });
 
+test("a note's level follows its envelope, so the quietest ringing note can make way", () => {
+  const peak = 0.3, decay = 1.2;
+  assert.equal(recipes.noteLevel(0, peak, decay), 0);
+  assert.ok(Math.abs(recipes.noteLevel(0.002, peak, decay) - peak) < 1e-9, 'at its peak after 2 ms');
+  assert.ok(Math.abs(recipes.noteLevel(decay - 1e-9, peak, decay) - 0.001) < 1e-6, 'down to 0.001 at its decay');
+  let last = peak;
+  for (let dt = 0.01; dt < decay; dt += 0.01) {
+    const v = recipes.noteLevel(dt, peak, decay);
+    assert.ok(v < last, `still dying away at ${dt.toFixed(2)} s`);
+    last = v;
+  }
+});
+
 test('every piece knocks with a known material: blocks and pegs like wood', () => {
   const materials = (id) => {
     const bodies = new Piece(catalog.BY_ID[id], 0, 0).buildBodies()

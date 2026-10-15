@@ -269,13 +269,23 @@ export function swirl(voice, t) {
 
 // ---- notes ----
 
+/** A note's level `dt` s after it was struck: up to `peak` in 2 ms, then
+ *  dying away exponentially to 0.001 at `decay`, as fmNote schedules it. */
+export function noteLevel(dt, peak, decay) {
+  if (dt <= 0 || dt >= decay) return 0;
+  if (dt < 0.002) return (peak * dt) / 0.002;
+  return peak * (0.001 / peak) ** ((dt - 0.002) / (decay - 0.002));
+}
+
 /**
  * A bell's or bar's note: FM with an inharmonic modulator (×1.41, bell-like)
  * whose brightness dies away over 0.4 s. `vol` 0..1, `decay` in s.
  * @param {BaseAudioContext} ctx
- * @returns {OscillatorNode} the carrier (its `onended` marks the note done)
+ * @returns the note: its `carrier` (whose `onended` marks it done), its
+ *   `level` at a time, and `stop(at)`, which fades it out in 15 ms
  */
 export function fmNote(ctx, out, t, freq, vol, decay) {
+  const peak = vol * 0.5;
   const carrier = ctx.createOscillator();
   carrier.frequency.value = freq;
   const mod = ctx.createOscillator();
@@ -285,7 +295,7 @@ export function fmNote(ctx, out, t, freq, vol, decay) {
   modGain.gain.exponentialRampToValueAtTime(1, t + 0.4);
   const env = ctx.createGain();
   env.gain.setValueAtTime(0, t);
-  env.gain.linearRampToValueAtTime(vol * 0.5, t + 0.002);
+  env.gain.linearRampToValueAtTime(peak, t + 0.002);
   env.gain.exponentialRampToValueAtTime(0.001, t + decay);
   mod.connect(modGain).connect(carrier.frequency);
   carrier.connect(env).connect(out);
@@ -293,5 +303,21 @@ export function fmNote(ctx, out, t, freq, vol, decay) {
   carrier.start(t);
   mod.stop(t + decay + 0.05);
   carrier.stop(t + decay + 0.05);
-  return carrier;
+  return {
+    carrier,
+    level: (at) => noteLevel(at - t, peak, decay),
+    stop(at) {
+      // hold where its decay has got to (cancelling the ramp alone would
+      // jump it back to its peak), then fade out
+      env.gain.cancelScheduledValues(at);
+      env.gain.setValueAtTime(noteLevel(at - t, peak, decay), at);
+      env.gain.linearRampToValueAtTime(0, at + 0.015);
+      try {
+        carrier.stop(at + 0.02);
+        mod.stop(at + 0.02);
+      } catch {
+        // a browser that allows one stop() per oscillator: it runs on silent
+      }
+    },
+  };
 }

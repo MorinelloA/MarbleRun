@@ -8,15 +8,28 @@ import { onReady, buses, soundContext, rumbleBuffer } from './engine.js';
 import { fmNote, rumbleVoice, swirl } from './recipes.js';
 
 const PENTATONIC = [523.25, 587.33, 659.25, 783.99, 880]; // C5 D5 E5 G5 A5
-let liveChimes = 0;
+/** the notes still ringing, at most CHIME_VOICES */
+const ringing = [];
 
-/** FM bell strike. freq in Hz; vol 0..1. */
+/** FM bell strike. freq in Hz; vol 0..1. When CHIME_VOICES notes are
+ *  already ringing, the quietest of them fades out to make room, so a run
+ *  of bars never skips a note. */
 export function strike(freq, vol = 0.8, decay = 1.8) {
   const ctx = soundContext();
-  if (!ctx || liveChimes >= CHIME_VOICES) return;
-  liveChimes++;
-  const carrier = fmNote(ctx, buses.chime, ctx.currentTime, freq, vol, decay);
-  carrier.onended = () => { liveChimes--; };
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  if (ringing.length >= CHIME_VOICES) {
+    let quietest = ringing[0];
+    for (const n of ringing) if (n.level(t) < quietest.level(t)) quietest = n;
+    quietest.stop(t);
+    ringing.splice(ringing.indexOf(quietest), 1);
+  }
+  const note = fmNote(ctx, buses.chime, t, freq, vol, decay);
+  ringing.push(note);
+  note.carrier.onended = () => {
+    const i = ringing.indexOf(note);
+    if (i >= 0) ringing.splice(i, 1);
+  };
 }
 
 const lastChime = new WeakMap(); // piece -> performance.now() of its last sound
