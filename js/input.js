@@ -1,32 +1,43 @@
 // @ts-check
-// Pointer state machine: tap to rotate / spawn marbles, drag to place,
-// move or delete pieces, grab-and-fling marbles. Single-pointer — the
-// first active pointer wins.
+// Pointer state machine: tap a piece to turn it, hold it to mirror it, drag
+// to place, move or delete pieces, tap the sky for a marble, grab and fling
+// marbles. Single-pointer — the first active pointer wins.
 
-import { GRID, GRID_X, GRID_Y, BOARD_W, BOARD_H, COLS, ROWS } from './config.js';
+import { GRID, BOARD_W, BOARD_H, COLS, ROWS, MARBLE_R } from './config.js';
 import { board } from './board.js';
 import * as world from './world.js';
-import { placePiece, removePiece } from './actions.js';
+import { placePiece, removePiece, snapshot, commitEdit, undo } from './actions.js';
+import { ghostCell, isTrash } from './placement.js';
 import { Piece } from './pieces/piece.js';
 import * as chimes from './audio/chimes.js';
 import { unlock } from './audio/engine.js';
+import { toast } from './ui/toast.js';
 
-const { Query, Body } = window.Matter;
+const { Body } = window.Matter;
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('playfield'));
 const trayEl = /** @type {HTMLElement} */ (document.getElementById('tray'));
 
-const TAP_MS = 300;
-const TAP_DIST = 8;
-const TOUCH_LIFT = 60; // ghost floats above the finger on touch
+const TAP_MS = 500;         // shorter presses on a piece turn it
+const LONG_PRESS_MS = 500;  // holding a piece this long mirrors it
+const TAP_DIST = 8;         // px of movement before a press becomes a drag
+const TOUCH_LIFT = 60;      // a new piece floats above the finger on touch
+const FLING_GAIN = 0.8;     // share of the finger's speed a thrown marble keeps
+const MS_PER_VELOCITY_UNIT = 1000 / 60; // Matter velocities are px per 16.7 ms
 
-let state = 'idle'; // idle | pressed | dragNew | dragExisting | dragMarble
+let state = 'idle'; // idle | pressed | held | dragNew | dragExisting | dragMarble
 let pointerId = null;
 let downPos = null;
 let downTime = 0;
 let pressedPiece = null;
+let longPressTimer = 0;
+let editBefore = null; // board snapshot from when the current drag began
 
-/** @type {null | {piece: Piece, x:number, y:number, snapped:boolean, valid:boolean, origin: null|{col:number,row:number}}} */
+/**
+ * ox/oy: offset from the pointer to the ghost's top-left corner.
+ * @type {null | {piece: Piece, x:number, y:number, ox:number, oy:number,
+ *   snapped:boolean, valid:boolean, trash:boolean, origin: null|{col:number,row:number}}}
+ */
 let ghost = null;
 
 let grabbedMarble = null;
@@ -34,9 +45,8 @@ const grabTrail = []; // recent {x, y, t} for fling velocity
 
 export function getGhost() { return ghost; }
 
-export function isOverTray(clientY) {
-  return clientY >= trayEl.getBoundingClientRect().top;
-}
+/** True while a press or drag is in progress (toolbar buttons wait). */
+export function isBusy() { return state !== 'idle'; }
 
 function toWorld(e) {
   const r = canvas.getBoundingClientRect();
@@ -46,31 +56,27 @@ function toWorld(e) {
   };
 }
 
-function liftedPos(e) {
-  const p = toWorld(e);
-  if (e.pointerType === 'touch') p.y -= TOUCH_LIFT;
-  return p;
-}
-
 function updateGhost(e) {
   if (!ghost) return;
-  const p = liftedPos(e);
-  const fwPx = ghost.piece.fw * GRID;
-  const fhPx = ghost.piece.fh * GRID;
-  const col = Math.round((p.x - fwPx / 2 - GRID_X) / GRID);
-  const row = Math.round((p.y - fhPx / 2 - GRID_Y) / GRID);
-  if (board.inBounds(col, row, ghost.piece.fw, ghost.piece.fh) && !isOverTray(e.clientY)) {
+  const p = toWorld(e);
+  const gx = p.x + ghost.ox;
+  const gy = p.y + ghost.oy;
+  const { fw, fh } = ghost.piece;
+  ghost.trash = isTrash(ghost.origin ? 'existing' : 'new', gx, gy, fw, fh);
+  trayEl.classList.toggle('trash-mode', ghost.trash);
+  const cell = ghost.trash ? null : ghostCell(gx, gy, fw, fh);
+  if (cell) {
     ghost.snapped = true;
-    ghost.valid = board.canPlace(ghost.piece, col, row);
-    ghost.piece.col = col;
-    ghost.piece.row = row;
-    ghost.x = GRID_X + col * GRID;
-    ghost.y = GRID_Y + row * GRID;
+    ghost.valid = board.canPlace(ghost.piece, cell.col, cell.row);
+    ghost.piece.col = cell.col;
+    ghost.piece.row = cell.row;
+    ghost.x = ghost.piece.x;
+    ghost.y = ghost.piece.y;
   } else {
     ghost.snapped = false;
     ghost.valid = false;
-    ghost.x = p.x - fwPx / 2;
-    ghost.y = p.y - fhPx / 2;
+    ghost.x = gx;
+    ghost.y = gy;
   }
 }
 
@@ -80,65 +86,101 @@ export function beginTrayDrag(entry, flip, e) {
   unlock();
   state = 'dragNew';
   pointerId = e.pointerId;
+  const piece = new Piece(entry, 0, 0, 0, flip);
   ghost = {
-    piece: new Piece(entry, 0, 0, 0, flip),
-    x: 0, y: 0, snapped: false, valid: false, origin: null,
+    piece,
+    x: 0, y: 0,
+    // centred on the pointer, and lifted clear of a finger
+    ox: -(piece.fw * GRID) / 2,
+    oy: -(piece.fh * GRID) / 2 - (e.pointerType === 'touch' ? TOUCH_LIFT : 0),
+    snapped: false, valid: false, trash: false, origin: null,
   };
+  editBefore = snapshot();
   chimes.ui.pickup();
-  trayEl.classList.add('trash-mode');
   updateGhost(e);
 }
 
-function beginExistingDrag(piece) {
+function beginExistingDrag(piece, e) {
   state = 'dragExisting';
+  editBefore = snapshot();
   removePiece(piece);
   ghost = {
     piece,
-    x: piece.x, y: piece.y, snapped: true, valid: true,
+    x: piece.x, y: piece.y,
+    // keep the piece where it was grabbed, so it doesn't jump
+    ox: piece.x - downPos.x,
+    oy: piece.y - downPos.y,
+    snapped: true, valid: true, trash: false,
     origin: { col: piece.col, row: piece.row },
   };
   chimes.ui.pickup();
-  trayEl.classList.add('trash-mode');
+  updateGhost(e);
 }
 
 function endDrag(e) {
+  updateGhost(e);
   trayEl.classList.remove('trash-mode');
-  if (!ghost) { state = 'idle'; return; }
-  const overTray = isOverTray(e.clientY);
-
-  if (state === 'dragExisting' && overTray) {
-    chimes.ui.delete(); // dropped on the tray = throw it away
-  } else if (ghost.snapped && ghost.valid) {
-    placePiece(ghost.piece);
-    chimes.ui.place();
-  } else if (ghost.origin) {
-    // invalid drop of an existing piece — put it back where it was
-    ghost.piece.col = ghost.origin.col;
-    ghost.piece.row = ghost.origin.row;
-    placePiece(ghost.piece);
-    chimes.ui.deny();
-  } else {
-    chimes.ui.deny();
-  }
+  const g = ghost;
   ghost = null;
+  if (g) {
+    if (g.trash) {
+      chimes.ui.delete(); // an existing piece dropped on the tray: thrown away
+    } else if (g.snapped && g.valid && board.canPlace(g.piece, g.piece.col, g.piece.row)) {
+      placePiece(g.piece);
+      chimes.ui.place();
+    } else if (g.origin) {
+      // invalid drop of an existing piece — put it back where it was
+      g.piece.col = g.origin.col;
+      g.piece.row = g.origin.row;
+      placePiece(g.piece);
+      chimes.ui.deny();
+    } else if (!g.snapped) {
+      chimes.ui.delete(); // a new piece let go off the board goes back
+    } else {
+      chimes.ui.deny();
+    }
+    if (editBefore && commitEdit(editBefore) && g.trash) {
+      toast('Piece removed', { ms: 3000, action: { label: 'Undo', fn: undo } });
+    }
+  }
+  editBefore = null;
   state = 'idle';
   pointerId = null;
 }
 
-function rotatePiece(piece) {
-  if (!piece.entry.rotatable) { chimes.ui.deny(); return; }
+/** Swap a piece for a turned or mirrored copy if the copy fits. */
+function reshape(piece, rot, flip) {
+  const before = snapshot();
   removePiece(piece);
-  const next = new Piece(piece.entry, piece.col, piece.row, piece.rot + 1, piece.flip);
-  // nudge back into bounds if the rotated footprint pokes out
+  const next = new Piece(piece.entry, piece.col, piece.row, rot, flip);
+  // nudge back into bounds if a turned footprint pokes out
   next.col = Math.min(next.col, Math.max(0, COLS - next.fw));
   next.row = Math.min(next.row, Math.max(0, ROWS - next.fh));
   if (board.canPlace(next, next.col, next.row)) {
     placePiece(next);
     chimes.ui.rotate();
+    commitEdit(before);
   } else {
-    placePiece(piece); // no room — keep the old orientation
+    placePiece(piece); // no room — keep the old shape
     chimes.ui.deny();
   }
+}
+
+function rotatePiece(piece) {
+  if (!piece.entry.rotatable) { chimes.ui.deny(); return; }
+  reshape(piece, (piece.rot + 1) % (piece.entry.rotations || 4), piece.flip);
+}
+
+function mirrorPiece(piece) {
+  if (!piece.entry.hasMirror) { chimes.ui.deny(); return; }
+  reshape(piece, piece.rot, piece.flip ? 0 : 1);
+}
+
+function onLongPress() {
+  if (state !== 'pressed' || !pressedPiece) return;
+  state = 'held';
+  mirrorPiece(pressedPiece);
+  pressedPiece = null;
 }
 
 function grabMarble(m, p) {
@@ -146,6 +188,17 @@ function grabMarble(m, p) {
   grabbedMarble = m;
   grabTrail.length = 0;
   grabTrail.push({ x: p.x, y: p.y, t: performance.now() });
+}
+
+/** Closest marble within `radius` of p, or null. */
+function marbleAt(p, radius) {
+  let best = null;
+  let bestD = radius;
+  for (const m of world.marbles) {
+    const d = Math.hypot(m.position.x - p.x, m.position.y - p.y);
+    if (d <= bestD) { best = m; bestD = d; }
+  }
+  return best;
 }
 
 /** Called from the main loop each frame so a held marble tracks the finger. */
@@ -163,14 +216,17 @@ function flingMarble() {
     const a = grabTrail[0];
     const b = grabTrail[grabTrail.length - 1];
     const dt = Math.max(16, b.t - a.t);
-    // px/ms -> px/step (steps are ~8.33ms)
-    const k = 8.33 / dt;
-    Body.setVelocity(grabbedMarble, {
-      x: (b.x - a.x) * k * 1.2,
-      y: (b.y - a.y) * k * 1.2,
-    });
+    const k = (MS_PER_VELOCITY_UNIT / dt) * FLING_GAIN; // px/ms -> Matter units
+    Body.setVelocity(grabbedMarble, { x: (b.x - a.x) * k, y: (b.y - a.y) * k });
   }
   grabbedMarble = null;
+}
+
+function reset() {
+  clearTimeout(longPressTimer);
+  state = 'idle';
+  pointerId = null;
+  pressedPiece = null;
 }
 
 // ---------- canvas pointer handlers ----------
@@ -182,16 +238,19 @@ canvas.addEventListener('pointerdown', (e) => {
   downPos = toWorld(e);
   downTime = performance.now();
 
-  // marbles first — grabbing and flinging them is half the fun
-  const hit = Query.point(world.marbles, downPos);
-  if (hit.length) {
-    grabMarble(hit[0], downPos);
+  const { col, row } = board.worldToCell(downPos.x, downPos.y);
+  const piece = board.pieceAt(col, row);
+  // marbles are small: easy to grab in open sky, but over a piece only a
+  // press right on the marble takes it, so a basket full of marbles can
+  // still be moved
+  const m = marbleAt(downPos, piece ? MARBLE_R + 2 : MARBLE_R * 2);
+  if (m) {
+    grabMarble(m, downPos);
     return;
   }
-
-  const { col, row } = board.worldToCell(downPos.x, downPos.y);
-  pressedPiece = board.pieceAt(col, row);
+  pressedPiece = piece;
   state = 'pressed';
+  if (piece) longPressTimer = setTimeout(onLongPress, LONG_PRESS_MS);
 });
 
 window.addEventListener('pointermove', (e) => {
@@ -200,13 +259,13 @@ window.addEventListener('pointermove', (e) => {
   if (state === 'pressed') {
     const p = toWorld(e);
     if (Math.hypot(p.x - downPos.x, p.y - downPos.y) > TAP_DIST) {
+      clearTimeout(longPressTimer);
       if (pressedPiece) {
-        beginExistingDrag(pressedPiece);
+        const piece = pressedPiece;
         pressedPiece = null;
-        updateGhost(e);
+        beginExistingDrag(piece, e);
       } else {
-        state = 'idle'; // drag on empty space does nothing
-        pointerId = null;
+        reset(); // a drag on empty space does nothing
       }
     }
   } else if (state === 'dragNew' || state === 'dragExisting') {
@@ -222,24 +281,20 @@ window.addEventListener('pointerup', (e) => {
   if (e.pointerId !== pointerId) return;
 
   if (state === 'pressed') {
-    const isTap = performance.now() - downTime < TAP_MS;
-    if (isTap) {
-      if (pressedPiece) {
-        rotatePiece(pressedPiece);
-      } else if (downPos.y < BOARD_H - 20) {
-        world.spawnMarble(downPos.x, downPos.y); // tap empty sky = drop a marble!
-        chimes.ui.spawn();
-      }
+    if (pressedPiece) {
+      if (performance.now() - downTime < TAP_MS) rotatePiece(pressedPiece);
+    } else if (downPos.y < BOARD_H - 20) {
+      world.spawnMarble(downPos.x, downPos.y); // a press on empty sky drops a marble
+      chimes.ui.spawn();
     }
-    pressedPiece = null;
-    state = 'idle';
-    pointerId = null;
+    reset();
+  } else if (state === 'held') {
+    reset();
   } else if (state === 'dragNew' || state === 'dragExisting') {
     endDrag(e);
   } else if (state === 'dragMarble') {
     flingMarble();
-    state = 'idle';
-    pointerId = null;
+    reset();
   }
 });
 
@@ -254,10 +309,9 @@ window.addEventListener('pointercancel', (e) => {
     placePiece(ghost.piece);
   }
   ghost = null;
+  editBefore = null;
   if (state === 'dragMarble') flingMarble();
-  state = 'idle';
-  pointerId = null;
-  pressedPiece = null;
+  reset();
 });
 
 // ---------- Safari gesture suppression ----------

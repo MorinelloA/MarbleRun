@@ -74,6 +74,11 @@ export const board = {
     return [...this.pieces].map(p => p.serialize());
   },
 
+  /** Order-independent fingerprint of serialized pieces, for "did anything change?" checks. */
+  signature(pieces) {
+    return pieces.map(p => `${p.t}:${p.c}:${p.r}:${p.rot || 0}:${p.f || 0}`).sort().join('|');
+  },
+
   /** Build Piece objects from saved data (does not add them anywhere). */
   deserialize(saved) {
     const out = [];

@@ -1,22 +1,30 @@
 // @ts-check
 // Boot + main loop.
+//
+// URL flags: ?debug shows the HUD from the start (the D key toggles it);
+// ?test runs no animation loop and skips the start screen, so screenshots
+// and checks can step the game deterministically with __mr.tick(n).
 
 import { GAME_W, GAME_H, PHYS_DT, MAX_SUBSTEPS } from './config.js';
 import * as world from './world.js';
 import * as render from './render.js';
 import * as input from './input.js';
 import { board } from './board.js';
-import { loadPieces } from './actions.js';
+import * as actions from './actions.js';
 import * as save from './save.js';
 import { buildPalette } from './ui/palette.js';
 import { buildToolbar } from './ui/toolbar.js';
 import * as saveload from './ui/saveload.js';
 import * as splash from './ui/splash.js';
-import { initOrientation, isPaused } from './orientation.js';
+import { initOrientation } from './orientation.js';
+import { isPaused, setPaused } from './pause.js';
 import { unlock } from './audio/engine.js';
 import * as rolling from './audio/rolling.js';
 import * as impacts from './audio/impacts.js';
 import * as chimes from './audio/chimes.js';
+
+const params = new URLSearchParams(location.search);
+const TEST = params.has('test');
 
 // ---------- scale the fixed-size game to the window ----------
 const gameEl = document.getElementById('game');
@@ -35,44 +43,47 @@ world.on('impact', (speed, marbleOnMarble, marble) => {
   impacts.trigger(speed, marbleOnMarble, marble);
 });
 world.on('chime', (note, speed, piece) => chimes.pieceSound(note, speed, piece));
-world.on('sensorEnter', (label) => {
-  if (label === 'funnel') chimes.funnelEnter();
+world.on('sensorEnter', (label, sensor, marble) => {
+  if (label === 'funnel') chimes.funnelEnter(marble.id);
   else if (label === 'basket') chimes.plink();
 });
-world.on('sensorExit', (label) => {
-  if (label === 'funnel') chimes.funnelExit();
+world.on('sensorExit', (label, sensor, marble) => {
+  if (label === 'funnel') chimes.funnelExit(marble.id);
 });
-document.addEventListener('pointerdown', () => unlock(), { capture: true });
-
-// ---------- board wiring ----------
-board.onChange(() => {
-  render.rebuildStatic();
-  save.scheduleAutosave();
+world.on('marbleRemoved', (marble) => {
+  rolling.releaseMarble(marble.id);
+  impacts.forget(marble.id);
+  chimes.forgetMarble(marble.id);
 });
+// iOS starts audio only inside a gesture; a touch's pointerdown may not
+// count as one, so unlock on the release too
+for (const type of ['pointerdown', 'pointerup', 'touchend']) {
+  document.addEventListener(type, () => unlock(), { capture: true });
+}
 
-// ---------- boot ----------
-render.setupCanvas();
-buildPalette();
-buildToolbar(saveload.show, splash.show);
-initOrientation();
-layout();
+// ---------- board and session wiring ----------
+board.onChange(() => render.rebuildStatic());
 
-// the splash screen owns what loads first (a preset, the autosave, or a blank board)
-splash.show();
+// save the build before the tab goes away (pagehide alone is unreliable on iOS)
+document.addEventListener('visibilitychange', () => {
+  setPaused('hidden', document.hidden);
+  if (document.hidden) save.flushAutosave();
+});
+window.addEventListener('pagehide', () => save.flushAutosave());
 
 // ---------- debug HUD ----------
-let hudOn = false;
+let hudOn = params.has('debug');
 let frameMs = 16.7;
-window.addEventListener('keydown', (e) => { if (e.key === 'd') hudOn = !hudOn; });
-let cornerTaps = [];
-document.addEventListener('pointerdown', (e) => {
-  if (e.clientX < 90 && e.clientY < 90) {
-    const now = performance.now();
-    cornerTaps = cornerTaps.filter(t => now - t < 900);
-    cornerTaps.push(now);
-    if (cornerTaps.length >= 3) { hudOn = !hudOn; cornerTaps = []; }
-  }
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'd' || e.key === 'D') hudOn = !hudOn;
 });
+
+function hud() {
+  return hudOn ? {
+    line1: `frame ${frameMs.toFixed(1)}ms  bodies ${world.bodyCount()}`,
+    line2: `marbles ${world.marbles.length}  rollvoices ${rolling.activeVoices()}`,
+  } : null;
+}
 
 // ---------- main loop ----------
 let last = performance.now();
@@ -97,16 +108,42 @@ function frame(now) {
     rolling.update(world.marbles, world.isRolling);
   }
 
-  const hud = hudOn ? {
-    line1: `frame ${frameMs.toFixed(1)}ms  bodies ${world.bodyCount()}`,
-    line2: `marbles ${world.marbles.length}  rollvoices ${rolling.activeVoices()}`,
-  } : null;
-  render.frame(input.getGhost(), hud);
+  render.frame(input.getGhost(), hud());
 
   frameMs = frameMs * 0.95 + (performance.now() - t0) * 0.05;
   requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
 
-// debug/testing handle
-window.__mr = { world, board, save, loadPieces, render, input };
+/** Test mode: advance n physics steps, then draw one frame. */
+function tick(n = 1) {
+  for (let i = 0; i < n; i++) {
+    input.tick();
+    world.step(PHYS_DT);
+  }
+  render.frame(input.getGhost(), hud());
+}
+
+// debug/testing handle (the site's walkthrough recorder uses loadPieces)
+window.__mr = { world, board, save, actions, loadPieces: actions.loadPieces, render, input, tick };
+
+// ---------- boot ----------
+render.setupCanvas();
+buildPalette();
+buildToolbar(saveload.show, () => splash.show({ closable: true }));
+initOrientation();
+layout();
+
+if (TEST) {
+  render.frame(null, hud());
+} else {
+  // the loop runs first, so a failure building the start screen can't
+  // leave a frozen game
+  requestAnimationFrame(frame);
+  try {
+    splash.show(); // the start screen owns what loads first
+  } catch (err) {
+    console.error('start screen failed:', err);
+    splash.hide();
+    actions.loadPieces([]);
+  }
+}

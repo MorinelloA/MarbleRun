@@ -13,6 +13,8 @@
     <canvas id="playfield"></canvas>
     <div id="toolbar">
       <button id="btn-home" title="Pick a track">🏠</button>
+      <button id="btn-undo" title="Undo" aria-label="Undo">↶</button>
+      <button id="btn-redo" title="Redo" aria-label="Redo">↷</button>
       <button id="btn-marble" title="Drop a marble">🔵</button>
       <button id="btn-reset" title="Clear marbles">🧹</button>
       <button id="btn-clear" title="Clear the board">🗑️</button>
@@ -23,6 +25,7 @@
   </div>
 
   <div id="splash" class="hidden">
+    <button id="splash-close" class="hidden" aria-label="Back to the board">✕</button>
     <div class="splash-inner">
       <h1 class="splash-title"><span>🔵</span> Marble Run Builder <span>🔴</span></h1>
       <p class="splash-sub">Pick a track to play, or build your own!</p>

@@ -32,6 +32,11 @@ onReady((ctx) => {
   }
 });
 
+/** Drop a removed marble's cooldown entry. */
+export function forget(marbleId) {
+  perMarble.delete(marbleId);
+}
+
 /**
  * @param {number} speed relative impact speed
  * @param {boolean} marbleOnMarble glassy clack instead of a thock

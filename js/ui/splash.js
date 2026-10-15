@@ -1,41 +1,20 @@
 // @ts-check
 // Splash screen: pick one of the designed tracks, continue the last build,
-// or start from a blank board.
+// or start from a blank board. Opened from Home it can also just be closed.
 
-import { BOARD_W, BOARD_H } from '../config.js';
 import { PRESETS } from '../presets.js';
-import { board } from '../board.js';
-import { loadPieces } from '../actions.js';
+import { replaceBoard, undo, session } from '../actions.js';
 import * as world from '../world.js';
 import * as save from '../save.js';
+import { setPaused } from '../pause.js';
 import { unlock } from '../audio/engine.js';
 import * as chimes from '../audio/chimes.js';
-import { paintPiece } from '../render.js';
+import { renderThumb } from './thumbs.js';
+import { toast } from './toast.js';
 
 const overlay = document.getElementById('splash');
 const grid = document.getElementById('splash-grid');
-
-/** Paint a preset's pieces into a small card thumbnail. */
-function makeThumb(pieces) {
-  const canvas = document.createElement('canvas');
-  const W = 232, H = 130;
-  canvas.width = W * 2;
-  canvas.height = H * 2;
-  canvas.style.width = `${W}px`;
-  canvas.style.height = `${H}px`;
-  const g = canvas.getContext('2d');
-  const s = Math.min((W * 2) / BOARD_W, (H * 2) / BOARD_H);
-  g.setTransform(s, 0, 0, s, (W * 2 - BOARD_W * s) / 2, (H * 2 - BOARD_H * s) / 2);
-  const sky = g.createLinearGradient(0, 0, 0, BOARD_H);
-  sky.addColorStop(0, '#cdeefb');
-  sky.addColorStop(1, '#aadcf2');
-  g.fillStyle = sky;
-  g.fillRect(0, 0, BOARD_W, BOARD_H);
-  for (const piece of board.deserialize(pieces)) {
-    paintPiece(g, piece, piece.x, piece.y);
-  }
-  return canvas;
-}
+const closeBtn = document.getElementById('splash-close');
 
 function card(title, emoji, blurb, thumbEl, onPick) {
   const el = document.createElement('button');
@@ -52,8 +31,10 @@ function card(title, emoji, blurb, thumbEl, onPick) {
   el.addEventListener('click', () => {
     unlock();            // splash tap is the audio-unlock gesture
     chimes.ui.place();
+    const replacing = session.dirty;
     onPick();
     hide();
+    if (replacing) toast(`Opened ${title}`, { action: { label: 'Undo', fn: undo } });
   });
   return el;
 }
@@ -65,40 +46,54 @@ function emptyThumb(icon) {
   return d;
 }
 
+function safeThumb(pieces) {
+  try {
+    return renderThumb(pieces);
+  } catch (err) {
+    console.warn('thumbnail failed:', err);
+    return emptyThumb('');
+  }
+}
+
 function rebuild() {
-  grid.innerHTML = '';
+  grid.textContent = '';
 
   const auto = save.readAutosave();
   if (auto) {
     grid.appendChild(card('Keep Building', '🔨', 'Back to your last run',
-      makeThumb(auto.pieces), () => {
-        loadPieces(auto.pieces);
+      safeThumb(auto.pieces), () => {
+        replaceBoard(auto.pieces, { source: 'autosave' });
       }));
   }
 
   for (const preset of PRESETS) {
     grid.appendChild(card(preset.name, preset.emoji, preset.blurb,
-      makeThumb(preset.pieces), () => {
-        loadPieces(preset.pieces);
+      safeThumb(preset.pieces), () => {
+        replaceBoard(preset.pieces, { source: `preset:${preset.id}` });
         for (const [x, y] of preset.spawn) world.spawnMarble(x, y);
       }));
   }
 
   grid.appendChild(card('Start Your Own', '✨', 'An empty board, all yours',
     emptyThumb('🖌️'), () => {
-      loadPieces([]);
+      replaceBoard([], { source: 'empty' });
     }));
 }
 
-export function show() {
+/** @param {{closable?: boolean}} [opts] closable when opened over a board */
+export function show({ closable = false } = {}) {
   rebuild();
+  closeBtn.classList.toggle('hidden', !closable);
   overlay.classList.remove('hidden');
+  setPaused('menu', true);
 }
 
 export function hide() {
   overlay.classList.add('hidden');
+  setPaused('menu', false);
 }
 
-export function isOpen() {
-  return !overlay.classList.contains('hidden');
-}
+closeBtn.addEventListener('click', () => {
+  unlock();
+  hide();
+});

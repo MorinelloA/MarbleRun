@@ -1,26 +1,20 @@
 // @ts-check
-// Top-right buttons + toast helper.
+// Top-right buttons.
 
 import { BOARD_W } from '../config.js';
 import * as world from '../world.js';
-import { clearBoard } from '../actions.js';
+import { clearBoard, snapshot, commitEdit, undo, redo } from '../actions.js';
+import * as history from '../history.js';
 import { board } from '../board.js';
+import { isBusy } from '../input.js';
 import { unlock, setMuted, isMuted } from '../audio/engine.js';
 import * as chimes from '../audio/chimes.js';
-
-const toastEl = document.getElementById('toast');
-let toastTimer = 0;
-
-export function toast(msg, ms = 2200) {
-  toastEl.textContent = msg;
-  toastEl.classList.remove('hidden');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.add('hidden'), ms);
-}
+import { toast } from './toast.js';
 
 /** Two-tap confirm helper for destructive buttons. */
 function armable(btn, onConfirm, hint) {
   btn.addEventListener('click', () => {
+    if (isBusy()) return;
     if (btn.classList.contains('armed')) {
       btn.classList.remove('armed');
       onConfirm();
@@ -32,14 +26,22 @@ function armable(btn, onConfirm, hint) {
   });
 }
 
+/** Click handler that waits out an in-progress drag (a second finger). */
+function onTap(id, fn) {
+  document.getElementById(id).addEventListener('click', () => {
+    if (isBusy()) return;
+    fn();
+  });
+}
+
 export function buildToolbar(openSaveDialog, openSplash) {
-  document.getElementById('btn-home').addEventListener('click', () => {
+  onTap('btn-home', () => {
     unlock();
     openSplash();
   });
 
   let dropIdx = 0;
-  document.getElementById('btn-marble').addEventListener('click', () => {
+  onTap('btn-marble', () => {
     unlock();
     // droppers pin the course start: release from them when any are placed,
     // otherwise rain marbles from random sky positions
@@ -56,28 +58,48 @@ export function buildToolbar(openSaveDialog, openSplash) {
     chimes.ui.spawn();
   });
 
-  document.getElementById('btn-reset').addEventListener('click', () => {
+  onTap('btn-reset', () => {
     world.resetMarbles();
     chimes.ui.delete();
   });
 
   armable(document.getElementById('btn-clear'), () => {
+    const before = snapshot();
     clearBoard();
     world.resetMarbles();
     chimes.ui.delete();
+    if (commitEdit(before)) toast('Board cleared', { action: { label: 'Undo', fn: undo } });
   }, 'Tap again to clear the whole board');
 
-  document.getElementById('btn-save').addEventListener('click', () => {
+  const undoBtn = document.getElementById('btn-undo');
+  const redoBtn = document.getElementById('btn-redo');
+  onTap('btn-undo', () => {
+    if (undo()) chimes.ui.rotate(); else chimes.ui.deny();
+  });
+  onTap('btn-redo', () => {
+    if (redo()) chimes.ui.rotate(); else chimes.ui.deny();
+  });
+  const syncHistory = () => {
+    undoBtn.classList.toggle('inactive', !history.canUndo());
+    redoBtn.classList.toggle('inactive', !history.canRedo());
+  };
+  history.onHistoryChange(syncHistory);
+  syncHistory();
+
+  onTap('btn-save', () => {
     unlock();
     openSaveDialog();
   });
 
   const muteBtn = document.getElementById('btn-mute');
-  muteBtn.addEventListener('click', () => {
+  const syncMute = () => {
+    muteBtn.textContent = isMuted() ? '🔇' : '🔊';
+    muteBtn.classList.toggle('muted', isMuted());
+  };
+  onTap('btn-mute', () => {
+    setMuted(!isMuted());
     unlock();
-    const m = !isMuted();
-    setMuted(m);
-    muteBtn.textContent = m ? '🔇' : '🔊';
-    muteBtn.classList.toggle('muted', m);
+    syncMute();
   });
+  syncMute();
 }

@@ -1,11 +1,15 @@
 // @ts-check
 // Composite operations that touch both the board model and the physics
-// world — used by input handling, toolbar and save/load.
+// world — used by input handling, the toolbar, menus and save/load. Player
+// edits go through commitEdit() so they can be undone and get autosaved.
 
 import { board } from './board.js';
 import * as world from './world.js';
-import { Piece } from './pieces/piece.js';
-import { BY_ID } from './pieces/catalog.js';
+import * as save from './save.js';
+import * as history from './history.js';
+
+/** What's on the board, and whether the player changed it since it loaded. */
+export const session = { dirty: false, source: 'empty' };
 
 export function placePiece(piece) {
   board.place(piece);
@@ -21,16 +25,74 @@ export function clearBoard() {
   for (const piece of board.clear()) world.removePieceBodies(piece);
 }
 
-/** Replace the whole board with a saved document's pieces. */
-export function loadPieces(saved) {
+function setPieces(saved) {
   clearBoard();
-  world.resetMarbles();
   for (const piece of board.deserialize(saved)) {
     if (board.canPlace(piece, piece.col, piece.row)) placePiece(piece);
   }
 }
 
-export function makePiece(typeId, col, row, rot = 0, flip = 0) {
-  const entry = BY_ID[typeId];
-  return entry ? new Piece(entry, col, row, rot, flip) : null;
+/**
+ * Replace the whole board and remove the marbles, without history or
+ * backups. Low level: the debug handle (`__mr.loadPieces`) and the site's
+ * walkthrough recorder use it directly.
+ */
+export function loadPieces(saved) {
+  world.resetMarbles();
+  setPieces(saved);
+}
+
+/** The board as plain records, to hand to commitEdit() when an edit ends. */
+export function snapshot() {
+  return board.serialize();
+}
+
+export function markEdited() {
+  session.dirty = true;
+  save.scheduleAutosave();
+}
+
+/**
+ * Finish a player edit that started from `before`: add an undo step, mark
+ * the board edited, autosave. A no-op when nothing actually changed.
+ * @returns {boolean} whether the board changed
+ */
+export function commitEdit(before) {
+  if (board.signature(before) === board.signature(board.serialize())) return false;
+  history.record(before);
+  markEdited();
+  return true;
+}
+
+/**
+ * Swap in a whole new board (a preset, a saved run, an empty board). A
+ * build the player made is saved and backed up first, and the swap itself
+ * can be undone.
+ */
+export function replaceBoard(pieces, { source = 'other' } = {}) {
+  const before = board.serialize();
+  save.flushAutosave();
+  if (before.length) {
+    if (session.dirty) save.pushBackup(before);
+    history.record(before);
+  }
+  loadPieces(pieces);
+  session.dirty = false;
+  session.source = source;
+}
+
+export function undo() {
+  const snap = history.undo(board.serialize());
+  if (!snap) return false;
+  setPieces(snap);
+  markEdited();
+  return true;
+}
+
+export function redo() {
+  const snap = history.redo(board.serialize());
+  if (!snap) return false;
+  setPieces(snap);
+  markEdited();
+  return true;
 }

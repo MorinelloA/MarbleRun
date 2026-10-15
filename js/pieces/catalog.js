@@ -85,7 +85,7 @@ export const CATALOG = [
   },
   {
     id: 'tube', name: 'Tube', cells: [1, 2], color: '#7d8fb3',
-    rotatable: true,
+    rotatable: true, rotations: 2, // symmetric: half a turn looks the same
     build: () => [g.rect(8, 64, 16, 128), g.rect(56, 64, 16, 128)],
   },
   {

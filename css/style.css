@@ -56,6 +56,8 @@ html, body {
 #toolbar button:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.15); }
 #toolbar button.armed { background: #ff6b6b; }
 #toolbar button.muted { opacity: 0.45; }
+#toolbar button.inactive { opacity: 0.4; }
+#btn-undo, #btn-redo { font-size: 30px; color: #2d4a75; }
 
 /* ---- piece tray ---- */
 #tray {
@@ -130,6 +132,18 @@ html, body {
   touch-action: pan-y;
 }
 #splash.hidden { display: none; }
+#splash-close {
+  position: fixed;
+  top: 16px; right: 16px;
+  width: 52px; height: 52px;
+  border: none;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.85);
+  font-size: 22px;
+  cursor: pointer;
+  z-index: 46;
+}
+#splash-close.hidden { display: none; }
 .splash-inner {
   width: min(880px, 94vw);
   padding: 24px 0;
@@ -319,3 +333,28 @@ html, body {
   transition: opacity 0.3s;
 }
 #toast.hidden { opacity: 0; pointer-events: none; }
+#toast { display: flex; align-items: center; gap: 14px; }
+.toast-action {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: #fff;
+  color: #1a2740;
+  font: inherit;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.slot-section {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+  font-size: 15px;
+  color: #2d4a75;
+}
+.slot-card canvas.slot-thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 240 / 158;
+  border-radius: 8px;
+  display: block;
+}

@@ -7,7 +7,7 @@
 import { ROLL_VOICES } from '../config.js';
 import { onReady, buses, getNoiseBuffer, context } from './engine.js';
 
-/** @type {{src:any, filter:any, gain:any, marbleId:number|null, score:number}[]} */
+/** @type {{src:any, filter:any, gain:any, rateBase:number, marbleId:number|null, score:number, last:number[]}[]} */
 const voices = [];
 
 onReady((ctx) => {
@@ -15,7 +15,8 @@ onReady((ctx) => {
     const src = ctx.createBufferSource();
     src.buffer = getNoiseBuffer();
     src.loop = true;
-    src.playbackRate.value = 0.8 + Math.random() * 0.15; // slight per-voice character
+    const rateBase = 0.8 + Math.random() * 0.15; // slight per-voice character
+    src.playbackRate.value = rateBase;
     const filter = ctx.createBiquadFilter();
     filter.type = 'bandpass';
     filter.frequency.value = 400;
@@ -24,15 +25,25 @@ onReady((ctx) => {
     gain.gain.value = 0;
     src.connect(filter).connect(gain).connect(buses.rolling);
     src.start();
-    voices.push({ src, filter, gain, marbleId: null, score: 0 });
+    voices.push({ src, filter, gain, rateBase, marbleId: null, score: 0, last: [0, 0, 0] });
   }
 });
 
+/** Schedule a parameter change only when it moved noticeably: this runs for
+ *  every voice on every frame. */
+function steer(v, i, param, value, t) {
+  if (Math.abs(value - v.last[i]) <= Math.max(0.002, Math.abs(v.last[i]) * 0.02)) return;
+  v.last[i] = value;
+  param.setTargetAtTime(value, t, 0.05);
+}
+
+/** Free a removed marble's voice right away instead of on the next frame. */
 export function releaseMarble(marbleId) {
   for (const v of voices) {
     if (v.marbleId === marbleId) {
       v.marbleId = null;
       v.score = 0;
+      v.last[0] = 0;
       if (context()) v.gain.gain.setTargetAtTime(0, context().currentTime, 0.03);
     }
   }
@@ -62,6 +73,7 @@ export function update(marbles, isRolling) {
     } else if (v.marbleId !== null) {
       v.marbleId = null;
       v.score = 0;
+      v.last[0] = 0;
       v.gain.gain.setTargetAtTime(0, t, 0.03);
     }
   }
@@ -92,9 +104,9 @@ export function update(marbles, isRolling) {
     const speed = e.m.speed;
     const touching = e.score > 0;
     const gain = touching ? Math.min(speed / 14, 1) * 0.5 : 0;
-    v.gain.gain.setTargetAtTime(gain, t, 0.05);
-    v.filter.frequency.setTargetAtTime(250 + speed * 55, t, 0.05);
-    v.src.playbackRate.setTargetAtTime(0.8 + speed / 30, t, 0.05);
+    steer(v, 0, v.gain.gain, gain, t);
+    steer(v, 1, v.filter.frequency, 250 + speed * 55, t);
+    steer(v, 2, v.src.playbackRate, v.rateBase + speed / 30, t);
   }
 }
 

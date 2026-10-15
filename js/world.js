@@ -7,8 +7,13 @@ import {
 
 const { Engine, World, Bodies, Body, Events, Sleeping, Composite, Vector } = window.Matter;
 
+// Sleeping stays off. With it on, Matter keeps a finished contact alive
+// without firing collisionEnd (and later revives it without collisionStart)
+// whenever both bodies have a positive sleep counter. Static pieces always
+// do, and a marble's counter grows while it rests or is held, so its next
+// hits went silent and cannons stopped firing.
 export const engine = Engine.create({
-  enableSleeping: true,
+  enableSleeping: false,
   positionIterations: 6,
   velocityIterations: 4,
 });
@@ -32,7 +37,7 @@ export function isRolling(marbleId) {
 }
 
 // ---- event fan-out (audio subscribes to these) ----
-const handlers = { impact: [], sensorEnter: [], sensorExit: [], chime: [] };
+const handlers = { impact: [], sensorEnter: [], sensorExit: [], chime: [], marbleRemoved: [] };
 export function on(type, fn) { handlers[type].push(fn); }
 function emit(type, ...args) { for (const fn of handlers[type]) fn(...args); }
 
@@ -74,7 +79,11 @@ export function removeMarble(b) {
   contactCounts.delete(b.id);
   lastContact.delete(b.id);
   World.remove(engine.world, b);
+  emit('marbleRemoved', b);
 }
+
+/** Simulated time in ms (advances only while physics steps). */
+export function simTime() { return engine.timing.timestamp; }
 
 export function resetMarbles() {
   for (const b of [...marbles]) removeMarble(b);
@@ -195,8 +204,12 @@ const boosted = new Set();
 // must never come to rest on a mover, they get carried along.
 const pushed = new Map(); // marble body -> accumulated {x, y}
 // Launchers: sensors labeled 'launch:vx,vy' (cannons) set an absolute
-// velocity the moment a marble enters them.
+// velocity on any marble inside them. They fire on entry and keep firing
+// while a marble stays inside (say, knocked back in by another marble),
+// at most once per LAUNCH_COOLDOWN_MS per marble.
 const launched = new Map(); // marble body -> { v: {x,y}, piece }
+const lastLaunch = new WeakMap(); // marble body -> sim time of its last launch
+const LAUNCH_COOLDOWN_MS = 250;
 // A marble that has passed a loop's apex gets that loop's exit gate opened:
 // the 'loopgate' scoop (bottom-right of the arc) stops colliding with it, so
 // it rolls straight through at ground level and exits the piece rightward.
@@ -222,7 +235,9 @@ for (const evName of ['collisionStart', 'collisionActive']) {
         continue;
       }
       if (plug?.launch) {
-        if (evName === 'collisionStart') launched.set(m, { v: plug.launch, piece: plug.piece });
+        if (engine.timing.timestamp - (lastLaunch.get(m) ?? -Infinity) >= LAUNCH_COOLDOWN_MS) {
+          launched.set(m, { v: plug.launch, piece: plug.piece });
+        }
         continue;
       }
       const label = other.label;
@@ -267,6 +282,7 @@ Events.on(engine, 'afterUpdate', () => {
   pushed.clear();
   for (const [b, l] of launched) {
     Body.setVelocity(b, { x: l.v.x, y: l.v.y });
+    lastLaunch.set(b, engine.timing.timestamp);
     emit('chime', 'tramp', 9, l.piece);
   }
   launched.clear();

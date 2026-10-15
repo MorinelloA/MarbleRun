@@ -2,18 +2,11 @@
 // Portrait overlay is pure CSS; this module mirrors it in JS so the game
 // can pause physics and duck audio while covered.
 
-import { suspendOutput, resumeOutput } from './audio/engine.js';
-
-let paused = false;
-export function isPaused() { return paused; }
+import { setPaused } from './pause.js';
 
 export function initOrientation() {
   const mq = window.matchMedia('(orientation: portrait)');
-  const apply = () => {
-    paused = mq.matches;
-    if (paused) suspendOutput();
-    else resumeOutput();
-  };
+  const apply = () => setPaused('portrait', mq.matches);
   mq.addEventListener('change', apply);
   window.addEventListener('resize', apply); // matchMedia change can be flaky
   apply();

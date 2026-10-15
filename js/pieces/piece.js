@@ -22,7 +22,9 @@ export class Piece {
     this.col = col;
     this.row = row;
     this.rot = entry.rotatable ? rot & 3 : 0;
-    this.flip = flip ? 1 : 0;
+    // only pieces with a mirrored twin can be mirrored; the loop's geometry
+    // (and its gate logic) assumes it never is
+    this.flip = entry.hasMirror && flip ? 1 : 0;
     this.bodies = [];
     this.constraint = null;
     this.dynamicBody = null;

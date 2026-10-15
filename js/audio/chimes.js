@@ -87,9 +87,9 @@ export function plink() {
   strike(660, 0.4, 0.5);
 }
 
-// ---- funnel swirl: one shared voice, driven by sensor enter/exit ----
+// ---- funnel swirl: one shared voice, on while any marble is in a funnel ----
 let swirl = null;
-let swirlCount = 0;
+const inFunnel = new Set(); // marble ids currently inside a funnel throat
 
 onReady((ctx) => {
   const src = ctx.createBufferSource();
@@ -106,8 +106,8 @@ onReady((ctx) => {
   swirl = { filter, gain };
 });
 
-export function funnelEnter() {
-  swirlCount++;
+export function funnelEnter(marbleId) {
+  inFunnel.add(marbleId);
   const ctx = context();
   if (!ctx || !swirl) return;
   const t = ctx.currentTime;
@@ -117,11 +117,16 @@ export function funnelEnter() {
   swirl.filter.frequency.exponentialRampToValueAtTime(1400, t + 0.6);
 }
 
-export function funnelExit() {
-  swirlCount = Math.max(0, swirlCount - 1);
+export function funnelExit(marbleId) {
+  inFunnel.delete(marbleId);
   const ctx = context();
-  if (!ctx || !swirl || swirlCount > 0) return;
+  if (!ctx || !swirl || inFunnel.size > 0) return;
   swirl.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.12);
+}
+
+/** A removed marble can't leave the swirl running. */
+export function forgetMarble(marbleId) {
+  if (inFunnel.has(marbleId)) funnelExit(marbleId);
 }
 
 // ---- UI blips ----
